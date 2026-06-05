@@ -12,7 +12,7 @@ interface ComposerImageTrayProps {
 
 const THUMB_WIDTH = 48;
 const COLLAPSED_STEP = 3;
-const EXPANDED_STEP = 28;
+const EXPANDED_STEP = 42;
 
 function isImageAttachment(attachment: ComposerAttachment): boolean {
   return attachment.type.startsWith("image/") || Boolean(attachment.previewUrl);
