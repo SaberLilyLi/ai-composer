@@ -112,7 +112,7 @@ export const WithMentionAndCommand: Story = {
 export const ImageConversationMode: Story = {
   args: {
     theme: "dark",
-    defaultAttachments: mockImages,
+    defaultAttachments: mockImages.slice(0, 5),
     defaultValue: "",
     placeholder: IMAGE_PLACEHOLDER
   },
@@ -138,7 +138,7 @@ export const OneImageCompact: Story = {
 
 export const ManyImagesCompact: Story = {
   args: {
-    defaultAttachments: mockImages,
+    defaultAttachments: mockImages.slice(0, 5),
     defaultValue: "",
     placeholder: IMAGE_PLACEHOLDER
   },
@@ -152,7 +152,7 @@ export const ManyImagesCompact: Story = {
 export const ManyImagesCompactDark: Story = {
   args: {
     theme: "dark",
-    defaultAttachments: mockImages,
+    defaultAttachments: mockImages.slice(0, 5),
     defaultValue: "",
     placeholder: IMAGE_PLACEHOLDER
   },

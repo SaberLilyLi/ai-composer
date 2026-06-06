@@ -20,26 +20,26 @@ export function ComposerActions({ canSend, canStop, onSend, onStop }: ComposerAc
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <button
           type="button"
-          className="rounded-full border border-composer-chipBorder bg-composer-chip px-3.5 py-1.5 text-sm font-medium text-composer-accent transition hover:border-composer-brand"
+          className="h-9 rounded-[18px] border border-composer-chipBorder bg-composer-chip px-3.5 text-sm font-medium text-composer-accent transition-colors duration-200 hover:bg-composer-elevated"
         >
           {ACTION_LABELS.agent}
         </button>
         <button
           type="button"
-          className="rounded-full border border-composer-chipBorder bg-composer-chip px-3.5 py-1.5 text-sm font-medium text-composer-text transition hover:border-composer-brand"
+          className="h-9 rounded-[18px] border border-composer-chipBorder bg-composer-chip px-3.5 text-sm font-medium text-composer-text transition-colors duration-200 hover:bg-composer-elevated"
         >
           {ACTION_LABELS.auto}
         </button>
         <button
           type="button"
-          className="rounded-full border border-composer-chipBorder bg-composer-chip px-3.5 py-1.5 text-sm font-medium text-composer-text transition hover:border-composer-brand"
+          className="h-9 rounded-[18px] border border-composer-chipBorder bg-composer-chip px-3.5 text-sm font-medium text-composer-text transition-colors duration-200 hover:bg-composer-elevated"
         >
           {ACTION_LABELS.skill}
         </button>
         <button
           type="button"
           aria-label="Mention"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-composer-chipBorder bg-composer-chip text-sm font-semibold text-composer-text transition hover:border-composer-brand"
+          className="flex h-9 w-9 items-center justify-center rounded-[18px] border border-composer-chipBorder bg-composer-chip text-sm font-semibold text-composer-text transition-colors duration-200 hover:bg-composer-elevated"
         >
           @
         </button>

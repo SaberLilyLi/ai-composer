@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jimeng Upload Stack Fixed</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stack {
+      position: relative;
+      width: 560px;
+      height: 120px;
+      user-select: none;
+    }
+
+    .card {
+      position: absolute;
+      left: 24px;
+      top: 18px;
+      width: 62px;
+      height: 76px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.86);
+      box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.24),
+        0 2px 6px rgba(0, 0, 0, 0.16);
+      transform-origin: center center;
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        transform 0.45s cubic-bezier(.22, 1, .36, 1),
+        box-shadow 0.25s ease,
+        opacity 0.25s ease;
+      cursor: pointer;
+    }
+
+    .card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .card.is-new {
+      animation: insertCard 0.36s cubic-bezier(.22, 1, .36, 1);
+    }
+
+    @keyframes insertCard {
+      0% {
+        opacity: 0;
+        transform: translateY(12px) scale(.82) rotate(10deg);
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .empty-upload {
+      position: absolute;
+      left: 24px;
+      top: 18px;
+      width: 62px;
+      height: 76px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(148, 163, 184, 0.38);
+      color: #8ea0c2;
+      font-size: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(8deg);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .upload-card {
+      position: absolute;
+      left: 69px;
+      top: 53px;
+      width: 41px;
+      height: 41px;
+      border-radius: 50%;
+      border: none;
+      background: #4b5563;
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        width 0.38s cubic-bezier(.22, 1, .36, 1),
+        height 0.38s cubic-bezier(.22, 1, .36, 1),
+        border-radius 0.38s cubic-bezier(.22, 1, .36, 1),
+        transform 0.45s cubic-bezier(.22, 1, .36, 1),
+        background 0.25s ease,
+        border 0.25s ease,
+        color 0.25s ease;
+    }
+
+    .close-btn {
+      position: absolute;
+      left: 76px;
+      top: 10px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #313a4b;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      cursor: pointer;
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        opacity 0.2s ease;
+    }
+
+    .stack.is-expanded .close-btn {
+      opacity: 1;
+    }
+
+    .card:hover {
+      box-shadow:
+        0 14px 28px rgba(0, 0, 0, 0.30),
+        0 4px 10px rgba(0, 0, 0, 0.18);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="stack" id="stack"></div>
+  <input id="fileInput" type="file" accept="image/*" hidden />
+
+  <script>
+    const stack = document.getElementById("stack");
+    const fileInput = document.getElementById("fileInput");
+
+    let images = [
+      "https://picsum.photos/id/1015/300/400",
+      "https://picsum.photos/id/1025/300/400",
+      "https://picsum.photos/id/1018/300/400"
+    ];
+
+    const angleList = [10, -8, 6, -5, 4, -3];
+    const collapsedLeft = 24;
+    const collapsedTop = 18;
+    const gap = 68;
+    const cardWidth = 62;
+    const cardHeight = 76;
+    const uploadBtnSize = 41;
+    const maxCount = 6;
+
+    let isExpanded = false;
+    let justUploaded = false;
+
+    function getExpandLeft(index) {
+      return collapsedLeft + index * gap;
+    }
+
+    function getAngle(index) {
+      return angleList[index] ?? (index % 2 === 0 ? 4 : -4);
+    }
+
+    function openUpload(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      fileInput.click();
+    }
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      images.unshift(url);
+
+      if (images.length > maxCount) {
+        images.pop();
+      }
+
+      justUploaded = true;
+      render();
+
+      requestAnimationFrame(() => {
+        collapseCards();
+      });
+
+      fileInput.value = "";
+    });
+
+    function render() {
+      stack.innerHTML = "";
+
+      if (images.length === 0) {
+        const empty = document.createElement("button");
+        empty.type = "button";
+        empty.className = "empty-upload";
+        empty.innerHTML = "+";
+        empty.addEventListener("click", openUpload);
+        stack.appendChild(empty);
+        return;
+      }
+
+      images.slice(0, maxCount).forEach((src, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        if (index === 0 && justUploaded) {
+          card.classList.add("is-new");
+        }
+        card.dataset.index = index;
+
+        const img = document.createElement("img");
+        img.src = src;
+        card.appendChild(img);
+
+        card.addEventListener("mouseenter", expandCards);
+        stack.appendChild(card);
+      });
+
+      const close = document.createElement("div");
+      close.className = "close-btn";
+      close.innerHTML = "×";
+      close.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        images.shift();
+        render();
+      });
+      stack.appendChild(close);
+
+      const upload = document.createElement("button");
+      upload.className = "upload-card";
+      upload.type = "button";
+      upload.innerHTML = "+";
+      upload.addEventListener("click", openUpload);
+      stack.appendChild(upload);
+
+      applyCollapsedStyles();
+      justUploaded = false;
+    }
+
+    function applyCollapsedStyles() {
+      stack.classList.remove("is-expanded");
+      isExpanded = false;
+
+      const cards = [...stack.querySelectorAll(".card")];
+
+      cards.forEach((card, index) => {
+        const angle = getAngle(index);
+        card.style.transitionDelay = `${(cards.length - index) * 20}ms`;
+        card.style.left = `${collapsedLeft}px`;
+        card.style.top = `${collapsedTop}px`;
+        card.style.zIndex = index + 1;
+        card.style.transform = `translateY(0) rotate(${angle}deg)`;
+      });
+
+      const upload = stack.querySelector(".upload-card");
+      if (upload) {
+        upload.style.transitionDelay = "0ms";
+        upload.style.left = "69px";
+        upload.style.top = "53px";
+        upload.style.width = `${uploadBtnSize}px`;
+        upload.style.height = `${uploadBtnSize}px`;
+        upload.style.borderRadius = "50%";
+        upload.style.background = "#4b5563";
+        upload.style.border = "none";
+        upload.style.color = "#fff";
+        upload.style.fontSize = "24px";
+        upload.style.transform = "rotate(0deg)";
+      }
+
+      const close = stack.querySelector(".close-btn");
+      if (close) {
+        close.style.left = "76px";
+        close.style.top = "10px";
+      }
+    }
+
+    function expandCards() {
+      if (!images.length || isExpanded) return;
+
+      stack.classList.add("is-expanded");
+      isExpanded = true;
+
+      const cards = [...stack.querySelectorAll(".card")];
+
+      cards.forEach((card, index) => {
+        const angle = getAngle(index);
+        card.style.transitionDelay = `${index * 35}ms`;
+        card.style.left = `${getExpandLeft(index)}px`;
+        card.style.top = `${collapsedTop}px`;
+        card.style.zIndex = index + 1;
+        card.style.transform = `translateY(-3px) rotate(${angle}deg)`;
+      });
+
+      const lastIndex = cards.length - 1;
+      const lastAngle = getAngle(lastIndex);
+      const uploadAngle = -lastAngle;
+
+      const upload = stack.querySelector(".upload-card");
+      if (upload) {
+        upload.style.transitionDelay = `${cards.length * 35}ms`;
+        upload.style.left = `${getExpandLeft(cards.length)}px`;
+        upload.style.top = `${collapsedTop}px`;
+        upload.style.width = `${cardWidth}px`;
+        upload.style.height = `${cardHeight}px`;
+        upload.style.borderRadius = "4px";
+        upload.style.background = "#2a3242";
+        upload.style.border = "1px dashed rgba(148,163,184,0.35)";
+        upload.style.color = "#8ea0c2";
+        upload.style.fontSize = "34px";
+        upload.style.transform = `translateY(-3px) rotate(${uploadAngle}deg)`;
+      }
+
+      const close = stack.querySelector(".close-btn");
+      if (close) {
+        close.style.transitionDelay = `${lastIndex * 35}ms`;
+        close.style.left = `${getExpandLeft(lastIndex) + 48}px`;
+        close.style.top = "6px";
+      }
+    }
+
+    function collapseCards() {
+      if (!images.length || !isExpanded) return;
+      applyCollapsedStyles();
+    }
+
+    function isInsideActiveArea(e) {
+      const rect = stack.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (!isExpanded) {
+        return (
+          x >= collapsedLeft &&
+          x <= collapsedLeft + cardWidth &&
+          y >= collapsedTop &&
+          y <= collapsedTop + cardHeight
+        );
+      }
+
+      const visibleCount = Math.min(images.length, maxCount);
+      const expandedRight = getExpandLeft(visibleCount) + cardWidth;
+      const expandedBottom = collapsedTop + cardHeight + 10;
+
+      return x >= 0 && x <= expandedRight && y >= 0 && y <= expandedBottom;
+    }
+
+    stack.addEventListener("mousemove", (e) => {
+      if (!isExpanded && isInsideActiveArea(e)) {
+        expandCards();
+      }
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isExpanded) return;
+      if (!isInsideActiveArea(e)) {
+        collapseCards();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

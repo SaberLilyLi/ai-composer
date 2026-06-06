@@ -1,24 +1,45 @@
 :root {
   --color-bg-primary: #f6f8fb;
   --color-bg-secondary: #ffffff;
-  --color-bg-shell: #f0f4f8;
+  --color-bg-shell: #ffffff;
   --color-bg-elevated: #ffffff;
   --color-bg-input: #ffffff;
-  --color-chip-bg: rgba(255, 255, 255, 0.82);
+  --color-chip-bg: #ffffff;
   --color-upload-action-bg: #ffffff;
-  --color-upload-action-border: #d8e0ea;
-  --color-text-primary: #1f2937;
-  --color-text-secondary: #8a94a6;
-  --color-border-primary: #dde6f0;
-  --color-border-soft: rgba(135, 151, 168, 0.18);
-  --color-chip-border: rgba(135, 151, 168, 0.22);
-  --color-brand-primary: #1769e0;
+  --color-upload-action-border: #e5eaf2;
+  --color-composer-hover-border: #d6dde8;
+  --color-image-tray-bg: #f8fafc;
+  --color-image-card-bg: #ffffff;
+  --color-image-card-border: rgba(255, 255, 255, 0.6);
+  --color-image-collapsed-border: rgba(255, 255, 255, 0.75);
+  --color-image-upload-bg: #f8fafc;
+  --color-image-upload-border: #cbd5e1;
+  --color-image-upload-text: #64748b;
+  --color-image-upload-hover: #3b82f6;
+  --color-image-upload-hover-bg: #eff6ff;
+  --color-image-add-bg: #475569;
+  --color-image-add-border: rgba(255, 255, 255, 0.6);
+  --color-image-delete-bg: rgba(0, 0, 0, 0.55);
+  --color-image-delete-hover: rgba(255, 0, 0, 0.85);
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #94a3b8;
+  --color-border-primary: #e5eaf2;
+  --color-border-soft: #eef2f7;
+  --color-chip-border: #e5eaf2;
+  --color-brand-primary: #1677ff;
   --color-accent-cyan: #0baee3;
-  --color-send-surface: #102033;
+  --color-send-surface: #1677ff;
+  --color-send-disabled: #9ca3af;
   --color-send-text: #ffffff;
   --color-action-danger: #c53a2f;
-  --shadow-composer-shell: 0 24px 60px rgba(16, 32, 51, 0.14);
+  --shadow-composer-shell: none;
+  --shadow-composer-hover: 0 8px 30px rgba(15, 23, 42, 0.06);
   --shadow-composer-tile: 0 14px 28px rgba(16, 32, 51, 0.12);
+  --shadow-image-card: 0 10px 24px rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-image-card-hover: 0 16px 32px rgba(0, 0, 0, 0.22);
+  --shadow-image-stack-card: 0 8px 18px rgba(15, 23, 42, 0.22);
+  --shadow-image-collapsed-card: 0 8px 18px rgba(15, 23, 42, 0.28);
+  --shadow-image-add-button: 0 4px 10px rgba(15, 23, 42, 0.28);
 }
 
 [data-theme="dark"] {
@@ -30,6 +51,20 @@
   --color-chip-bg: rgba(255, 255, 255, 0.045);
   --color-upload-action-bg: #2b3038;
   --color-upload-action-border: #3a414c;
+  --color-composer-hover-border: #3a414c;
+  --color-image-tray-bg: #2a2e38;
+  --color-image-card-bg: #2a2e38;
+  --color-image-card-border: rgba(255, 255, 255, 0.08);
+  --color-image-collapsed-border: rgba(255, 255, 255, 0.75);
+  --color-image-upload-bg: #343a46;
+  --color-image-upload-border: rgba(255, 255, 255, 0.18);
+  --color-image-upload-text: #aab2c0;
+  --color-image-upload-hover: #60a5fa;
+  --color-image-upload-hover-bg: #263246;
+  --color-image-add-bg: #475569;
+  --color-image-add-border: rgba(255, 255, 255, 0.6);
+  --color-image-delete-bg: rgba(0, 0, 0, 0.55);
+  --color-image-delete-hover: rgba(255, 0, 0, 0.85);
   --color-text-primary: #e5e7eb;
   --color-text-secondary: #8b93a1;
   --color-border-primary: #262b33;
@@ -38,8 +73,10 @@
   --color-brand-primary: #35c6ff;
   --color-accent-cyan: #18c7ff;
   --color-send-surface: #f2f5fb;
+  --color-send-disabled: #4b5360;
   --color-send-text: #11131a;
   --color-action-danger: #ff7d71;
   --shadow-composer-shell: 0 28px 80px rgba(0, 0, 0, 0.34);
+  --shadow-composer-hover: 0 8px 30px rgba(0, 0, 0, 0.26);
   --shadow-composer-tile: 0 14px 34px rgba(0, 0, 0, 0.3);
 }

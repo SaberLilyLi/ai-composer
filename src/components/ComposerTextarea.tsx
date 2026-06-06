@@ -55,7 +55,7 @@ export function ComposerTextarea({
       autoFocus={autoFocus}
       rows={minRows}
       aria-label="AI Composer Input"
-      className="w-full resize-none rounded-none border-0 bg-transparent px-0 py-1 text-[15px] leading-7 text-composer-text outline-none transition placeholder:text-composer-muted/80"
+      className="w-full resize-none rounded-none border-0 bg-transparent p-0 text-base leading-7 text-composer-text outline-none transition placeholder:text-composer-muted"
       onChange={(event) => {
         onChange(event.target.value);
         onCursorChange?.(event.target.selectionStart ?? event.target.value.length);

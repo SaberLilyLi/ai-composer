@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jimeng Upload Stack</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =========================
+   可调参数区域
+   ========================= */
+    .stack {
+      position: relative;
+      width: 560px;
+      height: 120px;
+      cursor: pointer;
+    }
+
+    /* 图片卡片 */
+    .card {
+      position: absolute;
+
+      /* 默认重叠位置 */
+      left: 24px;
+      top: 18px;
+
+      width: 62px;
+      height: 76px;
+
+      border-radius: 4px;
+      overflow: hidden;
+
+      background: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.86);
+
+      box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.24),
+        0 2px 6px rgba(0, 0, 0, 0.16);
+
+      transform-origin: center center;
+
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        transform 0.45s cubic-bezier(.22, 1, .36, 1),
+        box-shadow 0.25s ease,
+        opacity 0.25s ease;
+    }
+
+    .card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* 新上传卡片插入动画 */
+    .card.is-new {
+      animation: insertCard 0.36s cubic-bezier(.22, 1, .36, 1);
+    }
+
+    @keyframes insertCard {
+      0% {
+        opacity: 0;
+        transform: translateY(12px) scale(.82) rotate(10deg);
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* 空状态上传卡片 */
+    .empty-upload {
+      position: absolute;
+      left: 24px;
+      top: 18px;
+
+      width: 62px;
+      height: 76px;
+
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(148, 163, 184, 0.38);
+
+      color: #8ea0c2;
+      font-size: 34px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transform: rotate(8deg);
+      cursor: pointer;
+    }
+
+    /* 上传按钮：默认是圆形按钮，压在卡片右下角 */
+    .upload-card {
+      position: absolute;
+
+      left: 69px;
+      top: 53px;
+
+      width: 41px;
+      height: 41px;
+
+      border-radius: 50%;
+      border: none;
+      background: #4b5563;
+      color: #fff;
+
+      font-size: 24px;
+      line-height: 1;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      z-index: 99;
+      cursor: pointer;
+
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        width 0.38s cubic-bezier(.22, 1, .36, 1),
+        height 0.38s cubic-bezier(.22, 1, .36, 1),
+        border-radius 0.38s cubic-bezier(.22, 1, .36, 1),
+        transform 0.45s cubic-bezier(.22, 1, .36, 1),
+        background 0.25s ease,
+        border 0.25s ease,
+        color 0.25s ease;
+    }
+
+    /* 删除按钮 */
+    .close-btn {
+      position: absolute;
+
+      left: 76px;
+      top: 10px;
+
+      width: 20px;
+      height: 20px;
+
+      border-radius: 50%;
+      background: #313a4b;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+
+      font-size: 12px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      z-index: 100;
+
+      opacity: 0;
+
+      transition:
+        left 0.45s cubic-bezier(.22, 1, .36, 1),
+        top 0.45s cubic-bezier(.22, 1, .36, 1),
+        opacity 0.2s ease;
+    }
+
+    /* Hover 时显示删除按钮 */
+    .stack.is-expanded .close-btn {
+      opacity: 1;
+    }
+
+    /* 图片 hover 细节 */
+    .card:hover {
+      box-shadow:
+        0 14px 28px rgba(0, 0, 0, 0.30),
+        0 4px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    .upload-card,
+    .empty-upload {
+
+      cursor: pointer;
+
+      outline: none;
+
+      appearance: none;
+
+      -webkit-appearance: none;
+    }
+
+    .stack {
+      position: relative;
+      width: 560px;
+      height: 120px;
+    }
+
+    /* 只让图片堆区域触发 hover */
+    .stack-hit-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 120px;
+      height: 110px;
+      z-index: 200;
+      pointer-events: auto;
+    }
+
+    .cards-trigger {
+      position: absolute;
+      left: 0;
+      top: 0;
+
+      width: 90px;
+      height: 100px;
+
+      z-index: 500;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="stack" id="stack"></div>
+  <div class="cards-trigger"></div>
+  <input id="fileInput" type="file" accept="image/*" hidden />
+
+  <script>
+    const stack = document.getElementById("stack");
+    const fileInput = document.getElementById("fileInput");
+
+    /**
+     * 初始图片
+     * 你可以改成 []，就是纯空状态
+     */
+    let images = [
+      "https://picsum.photos/id/1015/300/400",
+      "https://picsum.photos/id/1025/300/400",
+      "https://picsum.photos/id/1018/300/400"
+    ];
+
+    /**
+     * 角度规则：
+     * 第 1 张：顺时针
+     * 第 2 张：逆时针
+     * 后面继续正负交替
+     */
+    const angleList = [10, -8, 6, -5, 4, -3];
+
+    /**
+     * 默认重叠位置
+     */
+    const collapsedLeft = 24;
+    const collapsedTop = 18;
+
+    /**
+     * 展开间距
+     * 想让卡片更松/更紧，主要调这个
+     */
+    const gap = 68;
+
+    /**
+     * 卡片尺寸
+     */
+    const cardWidth = 62;
+    const cardHeight = 76;
+
+    /**
+     * 最多显示图片数量
+     */
+    const maxCount = 6;
+
+    let isExpanded = false;
+    let justUploaded = false;
+
+    /**
+     * 展开位置：从当前位置开始，向右铺开
+     */
+    function getExpandLeft (index) {
+      return collapsedLeft + index * gap;
+    }
+
+    /**
+     * 获取角度
+     */
+    function getAngle (index) {
+      return angleList[index] ?? (index % 2 === 0 ? 4 : -4);
+    }
+
+    /**
+     * 打开上传
+     */
+    function openUpload (e) {
+      if (e) e.stopPropagation();
+      fileInput.click();
+    }
+
+    /**
+     * 文件上传
+     */
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+
+      // 新上传图片插入第一张
+      images.unshift(url);
+
+      // 最多保留 maxCount 张
+      if (images.length > maxCount) {
+        images.pop();
+      }
+
+      justUploaded = true;
+
+      render();
+
+      // 上传后保持收起状态
+      requestAnimationFrame(() => {
+        collapseCards();
+      });
+
+      fileInput.value = "";
+    });
+
+    /**
+     * 首次渲染 DOM
+     * 注意：hover 展开/收起不重新 render，只改 style，动画才平滑
+     */
+    function render () {
+      stack.innerHTML = "";
+
+      if (images.length === 0) {
+        const empty = document.createElement("button");
+
+        empty.type = "button";
+
+        empty.className = "empty-upload";
+
+        empty.innerHTML = "+";
+
+        empty.addEventListener("click", (e) => {
+
+          e.preventDefault();
+
+          e.stopPropagation();
+
+          fileInput.click();
+
+        });
+        empty.onclick = openUpload;
+        stack.appendChild(empty);
+        return;
+      }
+
+      images.slice(0, maxCount).forEach((src, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        if (index === 0 && justUploaded) {
+          card.classList.add("is-new");
+        }
+
+        card.dataset.index = index;
+
+        const img = document.createElement("img");
+        img.src = src;
+
+        card.appendChild(img);
+        stack.appendChild(card);
+      });
+
+      const close = document.createElement("div");
+      close.className = "close-btn";
+      close.innerHTML = "×";
+      stack.appendChild(close);
+
+      const upload = document.createElement("button");
+
+      upload.className = "upload-card";
+
+      upload.type = "button";
+
+      upload.innerHTML = "+";
+
+      /**
+       * 点击圆形上传按钮
+       */
+      upload.addEventListener("click", (e) => {
+
+        e.preventDefault();
+
+        e.stopPropagation();
+
+        fileInput.click();
+
+      });
+      upload.onclick = openUpload;
+      stack.appendChild(upload);
+
+      applyCollapsedStyles();
+
+      justUploaded = false;
+    }
+
+    /**
+     * 默认收起样式：全部卡片重叠
+     */
+    function applyCollapsedStyles () {
+      stack.classList.remove("is-expanded");
+      isExpanded = false;
+
+      const cards = [...stack.querySelectorAll(".card")];
+
+      cards.forEach((card, index) => {
+        const angle = getAngle(index);
+
+        card.style.transitionDelay = `${(cards.length - index) * 20}ms`;
+        card.style.left = `${collapsedLeft}px`;
+        card.style.top = `${collapsedTop}px`;
+        card.style.zIndex = index + 1;
+        card.style.transform = `translateY(0) rotate(${angle}deg)`;
+      });
+
+      const upload = stack.querySelector(".upload-card");
+      if (upload) {
+        upload.style.transitionDelay = "0ms";
+        upload.style.left = "69px";
+        upload.style.top = "53px";
+        upload.style.width = "41px";
+        upload.style.height = "41px";
+        upload.style.borderRadius = "50%";
+        upload.style.background = "#4b5563";
+        upload.style.border = "none";
+        upload.style.color = "#fff";
+        upload.style.fontSize = "24px";
+        upload.style.transform = "rotate(0deg)";
+      }
+
+      const close = stack.querySelector(".close-btn");
+      if (close) {
+        close.style.left = "76px";
+        close.style.top = "10px";
+      }
+    }
+
+    /**
+     * Hover 展开：从当前位置往右依次铺开
+     */
+    function expandCards () {
+      if (!images.length) return;
+
+      stack.classList.add("is-expanded");
+      isExpanded = true;
+
+      const cards = [...stack.querySelectorAll(".card")];
+
+      cards.forEach((card, index) => {
+        const angle = getAngle(index);
+
+        card.style.transitionDelay = `${index * 35}ms`;
+        card.style.left = `${getExpandLeft(index)}px`;
+        card.style.top = `${collapsedTop}px`;
+        card.style.zIndex = index + 1;
+        card.style.transform = `translateY(-3px) rotate(${angle}deg)`;
+      });
+
+      const lastIndex = cards.length - 1;
+      const lastAngle = getAngle(lastIndex);
+      const uploadAngle = -lastAngle;
+
+      const upload = stack.querySelector(".upload-card");
+      if (upload) {
+        upload.style.transitionDelay = `${cards.length * 35}ms`;
+        upload.style.left = `${getExpandLeft(cards.length)}px`;
+        upload.style.top = `${collapsedTop}px`;
+        upload.style.width = `${cardWidth}px`;
+        upload.style.height = `${cardHeight}px`;
+        upload.style.borderRadius = "4px";
+        upload.style.background = "#2a3242";
+        upload.style.border = "1px dashed rgba(148,163,184,0.35)";
+        upload.style.color = "#8ea0c2";
+        upload.style.fontSize = "34px";
+        upload.style.transform = `translateY(-3px) rotate(${uploadAngle}deg)`;
+      }
+
+      const close = stack.querySelector(".close-btn");
+      if (close) {
+        close.style.transitionDelay = `${lastIndex * 35}ms`;
+        close.style.left = `${getExpandLeft(lastIndex) + 48}px`;
+        close.style.top = "6px";
+      }
+    }
+
+    /**
+     * Hover 离开：收起回默认重叠
+     */
+    function collapseCards () {
+      if (!images.length) return;
+      applyCollapsedStyles();
+    }
+    const hitArea = document.createElement("div");
+    hitArea.className = "stack-hit-area";
+    stack.appendChild(hitArea);
+
+    hitArea.addEventListener("mouseenter", expandCards);
+
+    stack.addEventListener("mouseleave", collapseCards);
+
+    render();
+
+  </script>
+
+</body>
+
+</html>
