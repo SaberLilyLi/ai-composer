@@ -2,6 +2,8 @@ import type { ComposerAttachment } from "./types";
 
 export type AgentMode = "chat" | "image";
 export type AgentRole = "assistant" | "user" | "system";
+export type AgentImageResolution = "1K" | "2K" | "4K";
+export type AgentImageSize = "1:1" | "4:3" | "3:4" | "16:9" | "9:16";
 
 export interface AgentMessage {
   id: string;
@@ -28,6 +30,12 @@ export interface AgentRuntimeConfig {
   imageModel: string;
 }
 
+export interface AgentImageGenerationOptions {
+  count?: number;
+  resolution?: AgentImageResolution;
+  size?: AgentImageSize;
+}
+
 interface ChatRequestOptions {
   config: AgentRuntimeConfig;
   history: AgentMessage[];
@@ -38,6 +46,7 @@ interface ImageRequestOptions {
   config: AgentRuntimeConfig;
   prompt: string;
   attachments: ComposerAttachment[];
+  options?: AgentImageGenerationOptions;
   signal?: AbortSignal;
 }
 
@@ -103,6 +112,7 @@ export async function requestAgentImage({
   config,
   prompt,
   attachments,
+  options,
   signal
 }: ImageRequestOptions): Promise<{ images: string[]; text: string; model: string }> {
   const endpoint = config.imageEndpoint || DEFAULT_IMAGE_ENDPOINT;
@@ -126,8 +136,9 @@ export async function requestAgentImage({
       ]
     },
     parameters: {
-      n: 1,
-      size: imageContents.length > 0 ? "2K" : "4K",
+      n: normalizeImageCount(options?.count),
+      size: options?.resolution ?? (imageContents.length > 0 ? "2K" : "4K"),
+      ...(options?.size ? { aspect_ratio: options.size } : {}),
       watermark: false
     }
   };
@@ -144,6 +155,14 @@ export async function requestAgentImage({
     text: "Image generation completed.",
     model: data?.model || config.imageModel
   };
+}
+
+function normalizeImageCount(count?: number): number {
+  if (typeof count !== "number" || Number.isNaN(count)) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(4, Math.floor(count)));
 }
 
 async function buildChatMessages(history: AgentMessage[]) {

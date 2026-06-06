@@ -2,14 +2,14 @@ import { AiComposer } from "./AiComposer";
 import { ConversationView } from "./ConversationView";
 import { WorkflowTimeline } from "./WorkflowTimeline";
 import { useAgentConversationController } from "../controllers/useAgentConversationController";
-import type { AgentMode, AgentRuntimeConfig } from "../controllers/useAgentConversationController";
+import type { AgentConversationConfig, AgentMode } from "../controllers/useAgentConversationController";
 
 export interface AgentConversationWorkspaceProps {
   theme?: "light" | "dark" | "auto";
   title?: string;
   subtitle?: string;
   initialMode?: AgentMode;
-  config?: Partial<AgentRuntimeConfig>;
+  config?: AgentConversationConfig;
 }
 
 const DEFAULT_TITLE = "Agent Conversation";
@@ -36,8 +36,10 @@ export function AgentConversationWorkspace({
     isBusy,
     mentions,
     mode,
+    modeSwitchConfig,
     resetConversation,
     setMode,
+    uploadOptions,
     workflowSteps
   } = useAgentConversationController({ initialMode, config });
 
@@ -73,25 +75,29 @@ export function AgentConversationWorkspace({
         <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-[var(--color-bg-primary)] via-[var(--color-bg-primary)] to-transparent px-4 pb-5 pt-12">
           <div className="mx-auto max-w-[760px]">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex rounded-full border border-composer-chipBorder bg-composer-input p-1">
-                {(["chat", "image"] as AgentMode[]).map((item) => {
-                  const active = mode === item;
+              {modeSwitchConfig.enabled ? (
+                <div className="flex rounded-full border border-composer-chipBorder bg-composer-input p-1">
+                  {modeSwitchConfig.modes.map((item) => {
+                    const active = mode === item;
 
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      className={[
-                        "rounded-full px-3 py-1.5 text-xs font-medium transition",
-                        active ? "bg-composer-elevated text-composer-text" : "text-composer-muted hover:text-composer-text"
-                      ].join(" ")}
-                      onClick={() => setMode(item)}
-                    >
-                      {item === "chat" ? "Chat" : "Image"}
-                    </button>
-                  );
-                })}
-              </div>
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className={[
+                          "rounded-full px-3 py-1.5 text-xs font-medium transition",
+                          active ? "bg-composer-elevated text-composer-text" : "text-composer-muted hover:text-composer-text"
+                        ].join(" ")}
+                        onClick={() => setMode(item)}
+                      >
+                        {item === "chat" ? "Chat" : "Image"}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div />
+              )}
               <p className="hidden truncate text-xs text-composer-muted sm:block">{subtitle}</p>
             </div>
 
@@ -111,11 +117,7 @@ export function AgentConversationWorkspace({
               showActionOptions
               actionOptions={actionOptions}
               onActionOptionChange={handleActionOptionChange}
-              uploadOptions={{
-                accept: ["image/*"],
-                maxFiles: 9,
-                maxFileSize: 10 * 1024 * 1024
-              }}
+              uploadOptions={uploadOptions}
               placeholder={
                 mode === "chat"
                   ? "Ask anything..."

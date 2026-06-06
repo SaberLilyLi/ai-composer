@@ -29,6 +29,9 @@ export type {
 export type { ProviderConfig } from "./provider-config";
 export type {
   AgentAttachmentPreview,
+  AgentImageGenerationOptions,
+  AgentImageResolution,
+  AgentImageSize,
   AgentMessage,
   AgentMode,
   AgentRole,

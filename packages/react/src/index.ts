@@ -8,6 +8,17 @@ export { WorkflowTimeline } from "./components/WorkflowTimeline";
 export type { WorkflowTimelineProps } from "./components/WorkflowTimeline";
 export { AgentConversationWorkspace } from "./components/AgentConversationWorkspace";
 export type { AgentConversationWorkspaceProps } from "./components/AgentConversationWorkspace";
+export type {
+  AgentChatUIConfig,
+  AgentConversationConfig,
+  AgentConversationUIConfig,
+  AgentImageGenerationUIConfig,
+  AgentImageUIConfig,
+  AgentMode,
+  AgentModeSwitchConfig,
+  AgentRuntimeConfig,
+  AgentSelectOption
+} from "./controllers/useAgentConversationController";
 export { createReactAdapter } from "./adapters/react";
 export {
   ComposerCore,
