@@ -1,103 +1,48 @@
-# `@company/ai-composer`
+# AI Composer SDK
 
-A reusable AI composer component library for React applications.
+This repository now follows the architecture doc as a workspace SDK instead of a single React-only package.
 
-It currently ships two main exports:
+## Packages
 
-- `AiComposer`: the standalone composer component
-- `AgentConversationWorkspace`: a ready-to-use chat and image generation workspace built on top of the composer
+1. `packages/shared`: shared types, workflow contracts, theme tokens
+2. `packages/providers`: provider interfaces plus GPT/mock provider implementations
+3. `packages/core`: composer state, engines, parser, workflow runtime, plugins
+4. `packages/react`: React components and adapter package published as `@company/ai-composer`
+5. `packages/vue`: Vue package boundary and adapter contract
+6. `packages/playground`: runnable demo app
 
-## Install
+## Core principles
 
-From a local workspace package:
+1. Business logic lives in `core`
+2. Framework adaptation lives in `react` and `vue`
+3. AI capability flows through provider interfaces
+4. Workflow is the unifying execution model
 
-```bash
-npm install ../ai-composer
-```
-
-Or from a packed tarball:
-
-```bash
-npm pack
-npm install ../ai-composer/company-ai-composer-0.1.0.tgz
-```
-
-## Build
+## Commands
 
 ```bash
-npm run build
+pnpm install
+pnpm build
+pnpm test
+pnpm dev
 ```
 
-## Usage
+`pnpm dev` starts the local playground on port `4173`.
 
-Import the component and its stylesheet:
+## React usage
 
 ```tsx
 import { AiComposer } from "@company/ai-composer";
 import "@company/ai-composer/styles.css";
-
-export function Demo() {
-  return (
-    <AiComposer
-      placeholder="Ask, write, or upload an image..."
-      uploadOptions={{
-        accept: ["image/*"],
-        maxFiles: 9,
-        maxFileSize: 10 * 1024 * 1024
-      }}
-      onSend={async (value, context) => {
-        console.log(value, context.attachments);
-      }}
-    />
-  );
-}
 ```
 
-## Agent Workspace
+## Lower-level usage
 
-```tsx
-import { AgentConversationWorkspace } from "@company/ai-composer";
-import "@company/ai-composer/styles.css";
-
-export function AgentDemo() {
-  return (
-    <AgentConversationWorkspace
-      theme="dark"
-      config={{
-        apiKey: import.meta.env.VITE_AGENT_API_KEY,
-        chatModel: import.meta.env.VITE_AGENT_CHAT_MODEL ?? "qwen3.7-plus",
-        imageModel: import.meta.env.VITE_AGENT_IMAGE_MODEL ?? "wan2.7-image-pro"
-      }}
-    />
-  );
-}
+```ts
+import { WorkflowRuntime } from "@company/ai-composer-core";
+import { GPTProvider, GPTImageProvider } from "@company/ai-composer-providers";
 ```
 
-## Environment Variables
+## Migration
 
-If you use `AgentConversationWorkspace`, these environment variables are supported:
-
-```env
-VITE_AGENT_API_KEY=your_api_key
-VITE_AGENT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-VITE_AGENT_CHAT_MODEL=qwen3.7-plus
-VITE_AGENT_IMAGE_MODEL=wan2.7-image-pro
-```
-
-## Exports
-
-Main exports from the package entry:
-
-- `AiComposer`
-- `AgentConversationWorkspace`
-- `ComposerCore`
-- `CommandPlugin`
-- `MentionPlugin`
-- `UploadPlugin`
-- related TypeScript types
-
-## Notes
-
-- Remember to import `@company/ai-composer/styles.css` in the consuming project.
-- `react` and `react-dom` are peer dependencies.
-- The package build output is written to `dist/`.
+See [docs/Migration Guide.md](/F:/ai-composer/docs/Migration%20Guide.md) for the package split and compatibility notes.

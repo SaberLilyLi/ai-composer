@@ -1,0 +1,17 @@
+{
+  "name": "@company/ai-composer-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@company/ai-composer": "workspace:*",
+    "@company/ai-composer-core": "workspace:*",
+    "@company/ai-composer-providers": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}

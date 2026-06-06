@@ -1,7 +1,15 @@
 import type { Config } from "tailwindcss";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default {
-  content: ["./src/**/*.{ts,tsx}"],
+  content: [
+    join(rootDir, "packages/react/src/**/*.{ts,tsx}"),
+    join(rootDir, "packages/playground/src/**/*.{ts,tsx}"),
+    join(rootDir, "packages/playground/index.html")
+  ],
   theme: {
     extend: {
       colors: {

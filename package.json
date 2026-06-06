@@ -1,37 +1,15 @@
 {
-  "name": "@company/ai-composer",
+  "name": "ai-composer-workspace",
+  "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Enterprise AI composer component scaffold.",
-  "sideEffects": [
-    "*.css"
-  ],
-  "main": "./dist/ai-composer.cjs",
-  "module": "./dist/ai-composer.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/ai-composer.js",
-      "require": "./dist/ai-composer.cjs"
-    },
-    "./styles.css": "./dist/ai-composer.css"
-  },
-  "files": [
-    "dist"
-  ],
+  "packageManager": "pnpm@10.11.1",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.build.json && vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
-  },
-  "peerDependencies": {
-    "react": "^18.3.1 || ^19.0.0",
-    "react-dom": "^18.3.1 || ^19.0.0"
+    "build": "pnpm --filter @company/ai-composer-shared build && pnpm --filter @company/ai-composer-providers build && pnpm --filter @company/ai-composer-core build && pnpm --filter @company/ai-composer build && pnpm --filter @company/ai-composer-vue build && pnpm --filter @company/ai-composer-playground build",
+    "test": "pnpm build && pnpm --filter @company/ai-composer-providers test && pnpm --filter @company/ai-composer-core test && pnpm --filter @company/ai-composer test",
+    "dev": "pnpm --filter @company/ai-composer-playground dev",
+    "storybook": "pnpm --filter @company/ai-composer storybook",
+    "build-storybook": "pnpm --filter @company/ai-composer build-storybook"
   },
   "devDependencies": {
     "@storybook/react": "^8.6.14",
@@ -49,11 +27,9 @@
     "storybook": "^8.6.14",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
+    "vue": "^3.5.16",
     "vite": "^6.0.5",
     "vite-plugin-dts": "^4.5.0",
     "vitest": "^2.1.8"
-  },
-  "dependencies": {
-    "framer-motion": "^12.40.0"
   }
 }

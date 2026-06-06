@@ -1,0 +1,35 @@
+{
+  "name": "@company/ai-composer",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "React adapter package for the AI Composer SDK.",
+  "sideEffects": ["*.css"],
+  "main": "./dist/ai-composer.cjs",
+  "module": "./dist/ai-composer.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/ai-composer.js",
+      "require": "./dist/ai-composer.cjs"
+    },
+    "./styles.css": "./dist/ai-composer.css"
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@company/ai-composer-core": "workspace:*",
+    "@company/ai-composer-providers": "workspace:*",
+    "@company/ai-composer-shared": "workspace:*",
+    "framer-motion": "^12.40.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1 || ^19.0.0",
+    "react-dom": "^18.3.1 || ^19.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "test": "vitest run --config vitest.config.ts",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  }
+}

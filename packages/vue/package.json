@@ -1,0 +1,18 @@
+{
+  "name": "@company/ai-composer-vue",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "dependencies": {
+    "@company/ai-composer-core": "workspace:*",
+    "@company/ai-composer-shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.16"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}
