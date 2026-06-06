@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import type { CSSProperties, MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComposerAttachment } from "../core/types";
 import { AttachButton } from "./AttachButton";
 
@@ -10,9 +11,13 @@ interface ComposerImageTrayProps {
   onRemove: (id: string) => void;
 }
 
-const THUMB_WIDTH = 48;
-const COLLAPSED_STEP = 3;
-const EXPANDED_STEP = 42;
+const ANGLE_LIST = [10, -8, 6, -5, 4, -3];
+const COLLAPSED_LEFT = 24;
+const COLLAPSED_TOP = 18;
+const GAP = 68;
+const CARD_WIDTH = 62;
+const CARD_HEIGHT = 76;
+const UPLOAD_BUTTON_SIZE = 41;
 
 function isImageAttachment(attachment: ComposerAttachment): boolean {
   return attachment.type.startsWith("image/") || Boolean(attachment.previewUrl);
@@ -23,16 +28,115 @@ function renderFallbackLabel(name: string): string {
   return trimmed.length > 0 ? trimmed.slice(0, 2).toUpperCase() : "AI";
 }
 
-function getCollapsedTransform(index: number, isHovered: boolean): string {
-  const y = [0, 3, -2, 2, -3][index % 5];
-  const rotate = [-8, -3, 4, -5, 6][index % 5];
-  return `translateX(${index * COLLAPSED_STEP}px) translateY(${y}px) rotate(${rotate}deg) scale(${isHovered ? 1.2 : 1})`;
+function getExpandLeft(index: number): number {
+  return COLLAPSED_LEFT + index * GAP;
 }
 
-function getExpandedTransform(index: number, isHovered: boolean): string {
-  const y = index % 2 === 0 ? 0 : 3;
-  const rotate = [-4, -2, 2, -2, 3][index % 5];
-  return `translateX(${index * EXPANDED_STEP}px) translateY(${y}px) rotate(${rotate}deg) scale(${isHovered ? 1.2 : 1})`;
+function getAngle(index: number): number {
+  return ANGLE_LIST[index] ?? (index % 2 === 0 ? 4 : -4);
+}
+
+function getCardStyle(index: number, count: number, isExpanded: boolean): CSSProperties {
+  const angle = getAngle(index);
+
+  return {
+    position: "absolute",
+    left: isExpanded ? getExpandLeft(index) : COLLAPSED_LEFT,
+    top: COLLAPSED_TOP,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 4,
+    overflow: "hidden",
+    background: "#fff",
+    border: "1px solid rgba(255, 255, 255, 0.86)",
+    boxShadow: "0 8px 18px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.16)",
+    transformOrigin: "center center",
+    transform: isExpanded ? `translateY(-3px) rotate(${angle}deg)` : `translateY(0) rotate(${angle}deg)`,
+    transition:
+      "left 0.45s cubic-bezier(.22, 1, .36, 1), top 0.45s cubic-bezier(.22, 1, .36, 1), transform 0.45s cubic-bezier(.22, 1, .36, 1), box-shadow 0.25s ease, opacity 0.25s ease",
+    transitionDelay: isExpanded ? `${index * 35}ms` : `${(count - index) * 20}ms`,
+    cursor: "pointer",
+    zIndex: index + 1
+  };
+}
+
+function getUploadStyle(count: number, isExpanded: boolean): CSSProperties {
+  const lastIndex = count - 1;
+  const lastAngle = getAngle(lastIndex);
+  const uploadAngle = -lastAngle;
+
+  return {
+    position: "absolute",
+    left: isExpanded ? getExpandLeft(count) : 69,
+    top: isExpanded ? COLLAPSED_TOP : 53,
+    width: isExpanded ? CARD_WIDTH : UPLOAD_BUTTON_SIZE,
+    height: isExpanded ? CARD_HEIGHT : UPLOAD_BUTTON_SIZE,
+    borderRadius: isExpanded ? 4 : "50%",
+    border: isExpanded ? "1px dashed rgba(148,163,184,0.35)" : "none",
+    background: isExpanded ? "#2a3242" : "#4b5563",
+    color: isExpanded ? "#8ea0c2" : "#fff",
+    fontSize: isExpanded ? 34 : 24,
+    lineHeight: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 99,
+    cursor: "pointer",
+    outline: "none",
+    appearance: "none",
+    transition:
+      "left 0.45s cubic-bezier(.22, 1, .36, 1), top 0.45s cubic-bezier(.22, 1, .36, 1), width 0.38s cubic-bezier(.22, 1, .36, 1), height 0.38s cubic-bezier(.22, 1, .36, 1), border-radius 0.38s cubic-bezier(.22, 1, .36, 1), transform 0.45s cubic-bezier(.22, 1, .36, 1), background 0.25s ease, border 0.25s ease, color 0.25s ease",
+    transitionDelay: isExpanded ? `${count * 35}ms` : "0ms",
+    transform: isExpanded ? `translateY(-3px) rotate(${uploadAngle}deg)` : "rotate(0deg)"
+  };
+}
+
+function getCloseStyle(count: number, isExpanded: boolean): CSSProperties {
+  const lastIndex = count - 1;
+
+  return {
+    position: "absolute",
+    left: isExpanded ? getExpandLeft(lastIndex) + 48 : 76,
+    top: isExpanded ? 6 : 10,
+    width: 20,
+    height: 20,
+    borderRadius: "50%",
+    background: "#313a4b",
+    color: "#fff",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    fontSize: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+    opacity: isExpanded ? 1 : 0,
+    cursor: "pointer",
+    transition:
+      "left 0.45s cubic-bezier(.22, 1, .36, 1), top 0.45s cubic-bezier(.22, 1, .36, 1), opacity 0.2s ease",
+    transitionDelay: isExpanded ? `${lastIndex * 35}ms` : "0ms"
+  };
+}
+
+function getEmptyUploadStyle(): CSSProperties {
+  return {
+    position: "absolute",
+    left: COLLAPSED_LEFT,
+    top: COLLAPSED_TOP,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 4,
+    background: "rgba(255, 255, 255, 0.04)",
+    border: "1px dashed rgba(148, 163, 184, 0.38)",
+    color: "#8ea0c2",
+    fontSize: 34,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: "rotate(8deg)",
+    cursor: "pointer",
+    outline: "none",
+    appearance: "none"
+  };
 }
 
 export function ComposerImageTray({
@@ -42,22 +146,18 @@ export function ComposerImageTray({
   onAttach,
   onRemove
 }: ComposerImageTrayProps) {
+  const stackRef = useRef<HTMLDivElement | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [hoveredAttachmentId, setHoveredAttachmentId] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<ComposerAttachment | null>(null);
-  const imageAttachments = attachments.filter(isImageAttachment);
-  const hasImages = imageAttachments.length > 0;
-  const collapsedWidth = hasImages
-    ? THUMB_WIDTH + Math.max(0, imageAttachments.length - 1) * COLLAPSED_STEP + 26
-    : 38;
-  const expandedWidth = hasImages
-    ? THUMB_WIDTH + Math.max(0, imageAttachments.length - 1) * EXPANDED_STEP + 8
-    : 38;
-  const trayWidth = isExpanded ? expandedWidth : collapsedWidth;
-  const stackWidth = hasImages
-    ? THUMB_WIDTH + Math.max(0, imageAttachments.length - 1) * COLLAPSED_STEP
-    : 0;
-  const addButtonLeft = hasImages ? Math.max(24, stackWidth - 14) : 0;
+  const imageAttachments = useMemo(() => attachments.filter(isImageAttachment), [attachments]);
+  const visibleImages = useMemo(() => imageAttachments, [imageAttachments]);
+  const hasImages = visibleImages.length > 0;
+
+  useEffect(() => {
+    if (!hasImages && isExpanded) {
+      setIsExpanded(false);
+    }
+  }, [hasImages, isExpanded]);
 
   useEffect(() => {
     if (!previewAttachment) {
@@ -74,102 +174,153 @@ export function ComposerImageTray({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [previewAttachment]);
 
+  useEffect(() => {
+    if (!isExpanded) {
+      return undefined;
+    }
+
+    const handleDocumentMouseMove = (event: globalThis.MouseEvent) => {
+      if (!isInsideActiveArea(event.clientX, event.clientY)) {
+        setIsExpanded(false);
+      }
+    };
+
+    document.addEventListener("mousemove", handleDocumentMouseMove);
+    return () => document.removeEventListener("mousemove", handleDocumentMouseMove);
+  }, [isExpanded, visibleImages.length]);
+
+  const isInsideActiveArea = (clientX: number, clientY: number): boolean => {
+    const stack = stackRef.current;
+
+    if (!stack) {
+      return false;
+    }
+
+    const rect = stack.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    if (!isExpanded) {
+      return (
+        x >= COLLAPSED_LEFT &&
+        x <= COLLAPSED_LEFT + CARD_WIDTH &&
+        y >= COLLAPSED_TOP &&
+        y <= COLLAPSED_TOP + CARD_HEIGHT
+      );
+    }
+
+    const expandedRight = getExpandLeft(visibleImages.length) + CARD_WIDTH;
+    const expandedBottom = COLLAPSED_TOP + CARD_HEIGHT + 10;
+
+    return x >= 0 && x <= expandedRight && y >= 0 && y <= expandedBottom;
+  };
+
+  const handleStackMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    if (!isExpanded && isInsideActiveArea(event.clientX, event.clientY)) {
+      setIsExpanded(true);
+    }
+  };
+
+  const handleRemoveFrontImage = () => {
+    const frontImage = visibleImages[visibleImages.length - 1];
+
+    if (frontImage) {
+      onRemove(frontImage.id);
+    }
+  };
+
   return (
     <>
       <div
-        className="relative min-h-[66px] shrink-0 pt-1 transition-[width] duration-200 ease-out"
+        ref={stackRef}
+        data-testid="image-stack"
+        className="absolute left-7 top-7 z-10 overflow-visible"
         style={{
-          width: trayWidth
+          position: "absolute",
+          width: isExpanded ? getExpandLeft(visibleImages.length) + CARD_WIDTH : 120,
+          height: 120,
+          userSelect: "none"
         }}
+        onMouseMove={handleStackMouseMove}
       >
-        <div className="relative h-[64px]">
-          {hasImages ? (
-            <div
-              className="absolute left-0 top-0 h-[64px]"
-              onMouseEnter={() => setIsExpanded(true)}
-              onMouseLeave={() => {
-                setIsExpanded(false);
-                setHoveredAttachmentId(null);
-              }}
-              style={{
-                width: trayWidth
-              }}
-            >
-              {imageAttachments.map((attachment, index) => {
-                const isHovered = hoveredAttachmentId === attachment.id;
-
-                return (
-                  <div
-                    key={attachment.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Preview ${attachment.name}`}
-                    className="group/image-thumb absolute left-0 top-0 h-14 w-12 cursor-zoom-in overflow-visible rounded-lg transition-transform duration-200 ease-out"
-                    style={{
-                      transform: isExpanded
-                        ? getExpandedTransform(index, isHovered)
-                        : getCollapsedTransform(index, isHovered),
-                      zIndex: isHovered ? imageAttachments.length + 2 : isExpanded ? index + 1 : imageAttachments.length - index
-                    }}
-                    onMouseEnter={() => setHoveredAttachmentId(attachment.id)}
-                    onMouseLeave={() => setHoveredAttachmentId(null)}
-                    onClick={() => setPreviewAttachment(attachment)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setPreviewAttachment(attachment);
-                      }
-                    }}
-                  >
-                    <div className="absolute -top-7 left-1/2 max-w-[160px] -translate-x-1/2 whitespace-nowrap rounded-md border border-composer-border bg-composer-input px-2 py-1 text-[11px] font-medium text-composer-text opacity-0 shadow-tile transition-opacity duration-150 group-hover/image-thumb:opacity-100">
-                      {attachment.name}
-                    </div>
-
-                    <div className="h-full w-full overflow-hidden rounded-lg border border-composer-border bg-composer-elevated shadow-tile">
-                      {attachment.previewUrl ? (
-                        <img
-                          src={attachment.previewUrl}
-                          alt={attachment.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-composer-chip text-[11px] font-semibold text-composer-text">
-                          {renderFallbackLabel(attachment.name)}
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      aria-label={`Remove ${attachment.name}`}
-                      className="absolute right-1 top-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-composer-shell text-[10px] font-semibold text-composer-text opacity-0 shadow-tile transition hover:scale-105 group-hover/image-thumb:opacity-100"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRemove(attachment.id);
-                      }}
-                    >
-                      x
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
+        {!hasImages ? (
           <AttachButton
             accept={accept}
             disabled={disabled}
             label="Add image"
-            className="absolute flex h-7 w-7 items-center justify-center rounded-full border border-composer-uploadActionBorder bg-composer-uploadAction text-lg font-light leading-none text-composer-muted shadow-tile transition-[filter,color,transform,left] duration-200 hover:brightness-110 hover:text-composer-text disabled:cursor-not-allowed disabled:opacity-45"
-            style={{
-              left: addButtonLeft,
-              top: hasImages ? 34 : 12
-            }}
+            className=""
+            style={getEmptyUploadStyle()}
             onFilesSelected={onAttach}
           >
             +
           </AttachButton>
-        </div>
+        ) : null}
+
+        {visibleImages.map((attachment, index) => (
+          <div
+            key={attachment.id}
+            data-testid="image-stack-item"
+            role="button"
+            tabIndex={0}
+            aria-label={`Preview ${attachment.name}`}
+            style={getCardStyle(index, visibleImages.length, isExpanded)}
+            onMouseEnter={() => setIsExpanded(true)}
+            onClick={() => setPreviewAttachment(attachment)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setPreviewAttachment(attachment);
+              }
+            }}
+          >
+            {attachment.previewUrl ? (
+              <img
+                src={attachment.previewUrl}
+                alt={attachment.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block"
+                }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-700">
+                {renderFallbackLabel(attachment.name)}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {hasImages ? (
+          <>
+            <button
+              type="button"
+              aria-label={`Remove ${visibleImages[0].name}`}
+              data-testid="image-stack-remove"
+              style={getCloseStyle(visibleImages.length, isExpanded)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                handleRemoveFrontImage();
+              }}
+            >
+              x
+            </button>
+
+            <AttachButton
+              accept={accept}
+              disabled={disabled}
+              label="Add image"
+              testId="image-stack-upload"
+              className=""
+              style={getUploadStyle(visibleImages.length, isExpanded)}
+              onFilesSelected={onAttach}
+            >
+              +
+            </AttachButton>
+          </>
+        ) : null}
       </div>
 
       {previewAttachment ? (

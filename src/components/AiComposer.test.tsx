@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiComposer } from "./AiComposer";
@@ -52,6 +52,120 @@ describe("AiComposer", () => {
 
     expect(screen.getByRole("dialog", { name: "Preview preview.png" })).toBeTruthy();
     expect(screen.getAllByAltText("preview.png").length).toBeGreaterThan(1);
+  });
+
+  it("shows all image cards in the html stack", () => {
+    const attachments = Array.from({ length: 12 }, (_, index) => ({
+      id: `image-${index}`,
+      file: new File(["image"], `image-${index}.png`, { type: "image/png" }),
+      name: `image-${index}.png`,
+      size: 5,
+      type: "image/png",
+      previewUrl: `data:image/png;base64,image-${index}`,
+      status: "ready" as const
+    }));
+
+    render(<AiComposer defaultAttachments={attachments} />);
+
+    expect(screen.getAllByTestId("image-stack-item")).toHaveLength(12);
+    expect(screen.queryByTestId("image-stack-overflow")).toBeNull();
+    expect(screen.getByTestId("image-stack-upload")).toBeTruthy();
+  });
+
+  it("uses the newest images in the html stack", () => {
+    const attachments = Array.from({ length: 5 }, (_, index) => ({
+      id: `ordered-image-${index}`,
+      file: new File(["image"], `ordered-image-${index}.png`, { type: "image/png" }),
+      name: `ordered-image-${index}.png`,
+      size: 5,
+      type: "image/png",
+      previewUrl: `data:image/png;base64,ordered-image-${index}`,
+      status: "ready" as const
+    }));
+
+    render(<AiComposer defaultAttachments={attachments} />);
+
+    const cards = screen.getAllByTestId("image-stack-item");
+    expect(cards[0].getAttribute("aria-label")).toBe("Preview ordered-image-0.png");
+    expect(cards[4].getAttribute("aria-label")).toBe("Preview ordered-image-4.png");
+    expect(cards[4].style.zIndex).toBe("5");
+  });
+
+  it("expands the image stack only while it is hovered", async () => {
+    const user = userEvent.setup();
+    const attachments = Array.from({ length: 5 }, (_, index) => ({
+      id: `hover-image-${index}`,
+      file: new File(["image"], `hover-image-${index}.png`, { type: "image/png" }),
+      name: `hover-image-${index}.png`,
+      size: 5,
+      type: "image/png",
+      previewUrl: `data:image/png;base64,hover-image-${index}`,
+      status: "ready" as const
+    }));
+
+    render(<AiComposer defaultAttachments={attachments} />);
+
+    const stack = screen.getByTestId("image-stack");
+    const upload = screen.getByTestId("image-stack-upload");
+    const frontCard = screen.getAllByTestId("image-stack-item")[4];
+    expect(stack.style.width).toBe("120px");
+    expect(screen.getByLabelText("Add image").textContent).toBe("+");
+
+    await user.hover(frontCard);
+    await waitFor(() => expect(stack.style.width).toBe("426px"));
+    await waitFor(() => expect(upload.style.left).toBe("364px"));
+    await waitFor(() => expect(upload.style.width).toBe("62px"));
+    await waitFor(() => expect(upload.style.height).toBe("76px"));
+
+    await user.unhover(stack);
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 1000, clientY: 1000 }));
+    await waitFor(() => expect(stack.style.width).toBe("120px"));
+    await waitFor(() => expect(upload.style.width).toBe("41px"));
+  });
+
+  it("does not expand the image stack when the collapsed upload button is hovered", async () => {
+    const user = userEvent.setup();
+    const attachments = Array.from({ length: 3 }, (_, index) => ({
+      id: `upload-hover-image-${index}`,
+      file: new File(["image"], `upload-hover-image-${index}.png`, { type: "image/png" }),
+      name: `upload-hover-image-${index}.png`,
+      size: 5,
+      type: "image/png",
+      previewUrl: `data:image/png;base64,upload-hover-image-${index}`,
+      status: "ready" as const
+    }));
+
+    render(<AiComposer defaultAttachments={attachments} />);
+
+    const stack = screen.getByTestId("image-stack");
+    const upload = screen.getByTestId("image-stack-upload");
+
+    await user.hover(upload);
+
+    expect(stack.style.width).toBe("120px");
+    expect(screen.getByLabelText("Add image").textContent).toBe("+");
+  });
+
+  it("removes the newest visible image from the stack action", async () => {
+    const user = userEvent.setup();
+    const attachments = Array.from({ length: 3 }, (_, index) => ({
+      id: `remove-image-${index}`,
+      file: new File(["image"], `remove-image-${index}.png`, { type: "image/png" }),
+      name: `remove-image-${index}.png`,
+      size: 5,
+      type: "image/png",
+      previewUrl: `data:image/png;base64,remove-image-${index}`,
+      status: "ready" as const
+    }));
+
+    render(<AiComposer defaultAttachments={attachments} />);
+
+    const frontCard = screen.getAllByTestId("image-stack-item")[2];
+    await user.hover(frontCard);
+    await user.click(screen.getByTestId("image-stack-remove"));
+
+    expect(screen.queryByRole("button", { name: "Preview remove-image-2.png" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Preview remove-image-1.png" })).toBeTruthy();
   });
 
   it("submits on Enter and enables stop state", async () => {

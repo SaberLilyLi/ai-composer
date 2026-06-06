@@ -5,6 +5,7 @@ interface AttachButtonProps {
   accept?: string[];
   disabled?: boolean;
   className?: string;
+  testId?: string;
   style?: CSSProperties;
   label?: string;
   children?: ReactNode;
@@ -15,6 +16,7 @@ export function AttachButton({
   accept,
   disabled = false,
   className,
+  testId,
   style,
   label = "Attach",
   children,
@@ -44,6 +46,7 @@ export function AttachButton({
       <button
         type="button"
         aria-label={label}
+        data-testid={testId}
         disabled={disabled}
         className={
           className ??

@@ -7,7 +7,7 @@ import type {
 
 const defaultUploadOptions: Required<UploadPluginOptions> = {
   accept: [],
-  maxFiles: 5,
+  maxFiles: 9,
   maxFileSize: 10 * 1024 * 1024
 };
 

@@ -61,6 +61,22 @@ describe("ComposerCore", () => {
     expect(core.getState().attachments).toHaveLength(0);
   });
 
+  it("defaults upload capacity to nine attachments", () => {
+    const core = new ComposerCore();
+    core.use(new UploadPlugin({ accept: ["image/*"] }));
+
+    const files = Array.from({ length: 10 }, (_, index) => {
+      return new File(["hello"], `preview-${index}.png`, { type: "image/png" });
+    });
+
+    const addResult = core.addAttachments(files);
+
+    expect(addResult.added).toHaveLength(9);
+    expect(addResult.errors).toHaveLength(1);
+    expect(addResult.errors[0]?.message).toBe("You can attach up to 9 files.");
+    expect(core.getState().attachments).toHaveLength(9);
+  });
+
   it("opens mention context and inserts the selected mention", () => {
     const core = new ComposerCore({ value: "@de" });
     core.use(new MentionPlugin());
