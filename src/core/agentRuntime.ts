@@ -1,0 +1,283 @@
+import type { ComposerAttachment } from "./types";
+
+export type AgentMode = "chat" | "image";
+export type AgentRole = "assistant" | "user" | "system";
+
+export interface AgentMessage {
+  id: string;
+  role: AgentRole;
+  text: string;
+  attachments?: AgentAttachmentPreview[];
+  generatedImages?: string[];
+  model?: string;
+}
+
+export interface AgentAttachmentPreview {
+  id: string;
+  name: string;
+  mimeType: string;
+  previewUrl?: string;
+}
+
+export interface AgentRuntimeConfig {
+  apiKey: string;
+  baseUrl: string;
+  chatEndpoint?: string;
+  imageEndpoint?: string;
+  chatModel: string;
+  imageModel: string;
+}
+
+interface ChatRequestOptions {
+  config: AgentRuntimeConfig;
+  history: AgentMessage[];
+  prompt: string;
+  signal?: AbortSignal;
+}
+
+interface ImageRequestOptions {
+  config: AgentRuntimeConfig;
+  prompt: string;
+  attachments: ComposerAttachment[];
+  signal?: AbortSignal;
+}
+
+interface WanContentImage {
+  image: string;
+}
+
+interface WanContentText {
+  text: string;
+}
+
+const DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+const DEFAULT_IMAGE_ENDPOINT = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+
+export function getAgentRuntimeConfig(): AgentRuntimeConfig {
+  const env = import.meta.env as Record<string, string | undefined>;
+
+  return {
+    apiKey: env.VITE_AGENT_API_KEY ?? "",
+    baseUrl: env.VITE_AGENT_BASE_URL ?? DEFAULT_BASE_URL,
+    chatEndpoint: env.VITE_AGENT_CHAT_ENDPOINT,
+    imageEndpoint: env.VITE_AGENT_IMAGE_ENDPOINT,
+    chatModel: env.VITE_AGENT_CHAT_MODEL ?? "qwen-plus",
+    imageModel: env.VITE_AGENT_IMAGE_MODEL ?? "wan2.7-image-pro"
+  };
+}
+
+export function toAttachmentPreviews(attachments: ComposerAttachment[]): AgentAttachmentPreview[] {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    name: attachment.name,
+    mimeType: attachment.type,
+    previewUrl: attachment.previewUrl
+  }));
+}
+
+export async function requestAgentChat({
+  config,
+  history,
+  prompt,
+  signal
+}: ChatRequestOptions): Promise<{ text: string; model: string }> {
+  const endpoint = config.chatEndpoint || `${config.baseUrl}/chat/completions`;
+  const payload = {
+    model: config.chatModel,
+    temperature: 0.7,
+    messages: buildChatMessages(history, prompt)
+  };
+
+  const data = await postJson(endpoint, config.apiKey, payload, signal);
+  const text = extractChatText(data);
+
+  if (!text) {
+    throw new Error("The chat model returned an empty response.");
+  }
+
+  return {
+    text,
+    model: data?.model || config.chatModel
+  };
+}
+
+export async function requestAgentImage({
+  config,
+  prompt,
+  attachments,
+  signal
+}: ImageRequestOptions): Promise<{ images: string[]; text: string; model: string }> {
+  const endpoint = config.imageEndpoint || DEFAULT_IMAGE_ENDPOINT;
+  const imageContents: WanContentImage[] = await Promise.all(
+    attachments
+      .filter((attachment) => attachment.type.startsWith("image/"))
+      .slice(0, 9)
+      .map(async (attachment) => ({
+        image: await fileToDataUrl(attachment.file)
+      }))
+  );
+  const content: Array<WanContentImage | WanContentText> = [...imageContents, { text: prompt }];
+  const payload = {
+    model: config.imageModel,
+    input: {
+      messages: [
+        {
+          role: "user",
+          content
+        }
+      ]
+    },
+    parameters: {
+      n: 1,
+      size: imageContents.length > 0 ? "2K" : "4K",
+      watermark: false
+    }
+  };
+
+  const data = await postJson(endpoint, config.apiKey, payload, signal);
+  const images = extractImageUrls(data);
+
+  if (images.length === 0) {
+    throw new Error("The image model did not return any images.");
+  }
+
+  return {
+    images,
+    text: "Image generation completed.",
+    model: data?.model || config.imageModel
+  };
+}
+
+function buildChatMessages(history: AgentMessage[], prompt: string) {
+  const historyMessages = history
+    .filter((message) => message.role === "assistant" || message.role === "user")
+    .flatMap((message) => {
+      if (!message.text.trim()) {
+        return [];
+      }
+
+      return [
+        {
+          role: message.role,
+          content: message.text
+        }
+      ];
+    });
+
+  return [
+    {
+      role: "system",
+      content:
+        "You are a practical AI collaborator. Keep responses helpful, grounded, and concise, and call out tradeoffs when they matter."
+    },
+    ...historyMessages,
+    {
+      role: "user",
+      content: prompt
+    }
+  ];
+}
+
+async function postJson(url: string, apiKey: string, body: unknown, signal?: AbortSignal) {
+  if (!apiKey) {
+    throw new Error("Missing API key. Add VITE_AGENT_API_KEY to your .env file.");
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      data?.error?.message ||
+      data?.message ||
+      `Request failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+function extractChatText(data: any): string {
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (item?.type === "text" && typeof item.text === "string") {
+          return item.text;
+        }
+
+        return "";
+      })
+      .join("\n")
+      .trim();
+  }
+
+  return "";
+}
+
+function extractImageUrls(data: any): string[] {
+  const output = data?.output?.choices;
+
+  if (!Array.isArray(output)) {
+    return [];
+  }
+
+  return output
+    .flatMap((item) => {
+      const content = item?.message?.content;
+
+      if (!Array.isArray(content)) {
+        return [];
+      }
+
+      return content
+        .map((entry) => {
+          if (typeof entry?.image === "string" && entry.image.length > 0) {
+            return entry.image;
+          }
+
+          return "";
+        })
+        .filter((value): value is string => value.length > 0);
+    })
+    .filter((value, index, list) => list.indexOf(value) === index);
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error(`Failed to read "${file.name}" as a data URL.`));
+    };
+
+    reader.onerror = () => {
+      reject(new Error(`Failed to read "${file.name}".`));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
