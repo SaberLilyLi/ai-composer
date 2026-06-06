@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ComposerCore } from "../core/ComposerCore";
 import type {
   CommandItem,
+  ComposerActionOption,
   ComposerAttachment,
   ComposerState,
   MentionItem,
@@ -33,7 +34,10 @@ export interface AiComposerProps {
   uploadOptions?: UploadPluginOptions;
   mentions?: MentionItem[];
   commands?: CommandItem[];
+  showActionOptions?: boolean;
+  actionOptions?: ComposerActionOption[];
   onChange?: (value: string) => void;
+  onActionOptionChange?: (id: string, value: string) => void;
   onSend?: (
     value: string,
     context: { attachments: ComposerAttachment[] }
@@ -58,7 +62,10 @@ export function AiComposer({
   uploadOptions,
   mentions = [],
   commands = [],
+  showActionOptions = false,
+  actionOptions,
   onChange,
+  onActionOptionChange,
   onSend,
   onStop,
   onAttachmentsChange,
@@ -257,6 +264,9 @@ export function AiComposer({
         <ComposerActions
           canSend={canSend}
           canStop={canStop}
+          showActionOptions={showActionOptions}
+          actionOptions={actionOptions}
+          onActionOptionChange={onActionOptionChange}
           onSend={() => core.send()}
           onStop={() => core.stop()}
         />

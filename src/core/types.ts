@@ -39,6 +39,18 @@ export interface UploadPluginOptions {
   maxFileSize?: number;
 }
 
+export interface ComposerActionOptionChoice {
+  label: string;
+  value: string;
+}
+
+export interface ComposerActionOption {
+  id: string;
+  label: string;
+  value: string;
+  options: ComposerActionOptionChoice[];
+}
+
 export interface UploadError {
   file?: File;
   message: string;

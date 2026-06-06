@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { AiComposer } from "./AiComposer";
-import type { ComposerAttachment } from "../core/types";
+import type { ComposerActionOption, ComposerAttachment } from "../core/types";
 import {
   getAgentRuntimeConfig,
   requestAgentChat,
@@ -66,6 +66,9 @@ export function AgentConversationWorkspace({
   const runtimeConfig = buildRuntimeConfig(config);
   const abortRef = useRef<AbortController | null>(null);
   const [mode, setMode] = useState<AgentMode>(initialMode);
+  const [selectedChatModel, setSelectedChatModel] = useState(runtimeConfig.chatModel);
+  const [selectedImageModel, setSelectedImageModel] = useState(runtimeConfig.imageModel);
+  const [reasoningSpeed, setReasoningSpeed] = useState("balanced");
   const [composerKey, setComposerKey] = useState(0);
   const [messages, setMessages] = useState<AgentMessage[]>([
     createMessage(
@@ -119,9 +122,11 @@ export function AgentConversationWorkspace({
     try {
       if (mode === "chat") {
         const result = await requestAgentChat({
-          config: runtimeConfig,
+          config: {
+            ...runtimeConfig,
+            chatModel: selectedChatModel
+          },
           history: nextHistory,
-          prompt: trimmedValue,
           signal: controller.signal
         });
 
@@ -134,7 +139,10 @@ export function AgentConversationWorkspace({
         );
       } else {
         const result = await requestAgentImage({
-          config: runtimeConfig,
+          config: {
+            ...runtimeConfig,
+            imageModel: selectedImageModel
+          },
           prompt: trimmedValue,
           attachments: context.attachments,
           signal: controller.signal
@@ -176,6 +184,28 @@ export function AgentConversationWorkspace({
     abortRef.current?.abort();
   };
 
+  const actionOptions: ComposerActionOption[] = [
+    {
+      id: "model",
+      label: "\u6a21\u578b",
+      value: mode === "chat" ? selectedChatModel : selectedImageModel,
+      options:
+        mode === "chat"
+          ? [{ label: "Qwen", value: "qwen3.7-plus" }]
+          : [{ label: "Wan", value: "wan2.7-image-pro" }]
+    },
+    {
+      id: "reasoning-speed",
+      label: "\u63a8\u7406\u901f\u5ea6",
+      value: reasoningSpeed,
+      options: [
+        { label: "\u5feb", value: "fast" },
+        { label: "\u5747\u8861", value: "balanced" },
+        { label: "\u6df1\u5ea6", value: "deep" }
+      ]
+    }
+  ];
+
   return (
     <div
       className="flex min-h-[840px] w-[1120px] overflow-hidden rounded-[32px] border border-composer-border bg-composer-bg shadow-composer"
@@ -190,11 +220,11 @@ export function AgentConversationWorkspace({
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-composer-muted">Active models</div>
           <div className="mt-4 rounded-2xl border border-composer-chipBorder bg-composer-bg px-4 py-3">
             <div className="text-xs text-composer-muted">Chat</div>
-            <div className="mt-1 text-sm font-medium text-composer-text">{runtimeConfig.chatModel}</div>
+            <div className="mt-1 text-sm font-medium text-composer-text">{selectedChatModel}</div>
           </div>
           <div className="mt-3 rounded-2xl border border-composer-chipBorder bg-composer-bg px-4 py-3">
             <div className="text-xs text-composer-muted">Image</div>
-            <div className="mt-1 text-sm font-medium text-composer-text">{runtimeConfig.imageModel}</div>
+            <div className="mt-1 text-sm font-medium text-composer-text">{selectedImageModel}</div>
           </div>
         </div>
 
@@ -336,6 +366,22 @@ export function AgentConversationWorkspace({
               theme={theme}
               autoFocus
               disabled={isBusy}
+              showActionOptions
+              actionOptions={actionOptions}
+              onActionOptionChange={(id, value) => {
+                if (id === "model") {
+                  if (mode === "chat") {
+                    setSelectedChatModel(value);
+                  } else {
+                    setSelectedImageModel(value);
+                  }
+                  return;
+                }
+
+                if (id === "reasoning-speed") {
+                  setReasoningSpeed(value);
+                }
+              }}
               uploadOptions={{
                 accept: ["image/*"],
                 maxFiles: 9,

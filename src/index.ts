@@ -18,6 +18,8 @@ export { MentionPlugin } from "./plugins/MentionPlugin";
 export { UploadPlugin } from "./plugins/UploadPlugin";
 export type {
   CommandItem,
+  ComposerActionOption,
+  ComposerActionOptionChoice,
   ComposerAttachment,
   ComposerContextItem,
   ComposerContextMode,

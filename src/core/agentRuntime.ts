@@ -31,7 +31,6 @@ export interface AgentRuntimeConfig {
 interface ChatRequestOptions {
   config: AgentRuntimeConfig;
   history: AgentMessage[];
-  prompt: string;
   signal?: AbortSignal;
 }
 
@@ -61,7 +60,7 @@ export function getAgentRuntimeConfig(): AgentRuntimeConfig {
     baseUrl: env.VITE_AGENT_BASE_URL ?? DEFAULT_BASE_URL,
     chatEndpoint: env.VITE_AGENT_CHAT_ENDPOINT,
     imageEndpoint: env.VITE_AGENT_IMAGE_ENDPOINT,
-    chatModel: env.VITE_AGENT_CHAT_MODEL ?? "qwen-plus",
+    chatModel: env.VITE_AGENT_CHAT_MODEL ?? "qwen3.7-plus",
     imageModel: env.VITE_AGENT_IMAGE_MODEL ?? "wan2.7-image-pro"
   };
 }
@@ -78,14 +77,13 @@ export function toAttachmentPreviews(attachments: ComposerAttachment[]): AgentAt
 export async function requestAgentChat({
   config,
   history,
-  prompt,
   signal
 }: ChatRequestOptions): Promise<{ text: string; model: string }> {
   const endpoint = config.chatEndpoint || `${config.baseUrl}/chat/completions`;
   const payload = {
     model: config.chatModel,
     temperature: 0.7,
-    messages: buildChatMessages(history, prompt)
+    messages: await buildChatMessages(history)
   };
 
   const data = await postJson(endpoint, config.apiKey, payload, signal);
@@ -148,20 +146,15 @@ export async function requestAgentImage({
   };
 }
 
-function buildChatMessages(history: AgentMessage[], prompt: string) {
+async function buildChatMessages(history: AgentMessage[]) {
   const historyMessages = history
     .filter((message) => message.role === "assistant" || message.role === "user")
-    .flatMap((message) => {
-      if (!message.text.trim()) {
+    .flatMap(async (message) => {
+      if (!message.text.trim() && (!message.attachments || message.attachments.length === 0)) {
         return [];
       }
 
-      return [
-        {
-          role: message.role,
-          content: message.text
-        }
-      ];
+      return [await buildChatMessage(message)];
     });
 
   return [
@@ -170,12 +163,39 @@ function buildChatMessages(history: AgentMessage[], prompt: string) {
       content:
         "You are a practical AI collaborator. Keep responses helpful, grounded, and concise, and call out tradeoffs when they matter."
     },
-    ...historyMessages,
-    {
-      role: "user",
-      content: prompt
-    }
+    ...(await Promise.all(historyMessages)).flat()
   ];
+}
+
+async function buildChatMessage(message: AgentMessage) {
+  const imageAttachments = (message.attachments ?? [])
+    .filter((attachment) => attachment.mimeType.startsWith("image/") && typeof attachment.previewUrl === "string")
+    .slice(0, 9);
+
+  if (imageAttachments.length === 0) {
+    return {
+      role: message.role,
+      content: message.text
+    };
+  }
+
+  const images = imageAttachments.map((attachment) => ({
+    type: "image_url" as const,
+    image_url: {
+      url: attachment.previewUrl as string
+    }
+  }));
+
+  return {
+    role: message.role,
+    content: [
+      {
+        type: "text",
+        text: message.text
+      },
+      ...images
+    ]
+  };
 }
 
 async function postJson(url: string, apiKey: string, body: unknown, signal?: AbortSignal) {

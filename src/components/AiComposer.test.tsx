@@ -230,4 +230,55 @@ describe("AiComposer", () => {
 
     expect(handleAttachmentError).toHaveBeenCalled();
   });
+
+  it("hides action options by default", () => {
+    render(<AiComposer />);
+
+    expect(screen.queryByRole("combobox", { name: "Model" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Reasoning speed" })).toBeNull();
+  });
+
+  it("shows configurable action options when enabled", async () => {
+    const user = userEvent.setup();
+    const handleActionChange = vi.fn();
+
+    render(
+      <AiComposer
+        showActionOptions
+        actionOptions={[
+          {
+            id: "model",
+            label: "Model",
+            value: "qwen-plus",
+            options: [
+              { label: "Qwen", value: "qwen-plus" },
+              { label: "Qwen Max", value: "qwen-max" }
+            ]
+          },
+          {
+            id: "reasoning-speed",
+            label: "Reasoning speed",
+            value: "balanced",
+            options: [
+              { label: "Fast", value: "fast" },
+              { label: "Balanced", value: "balanced" },
+              { label: "Deep", value: "deep" }
+            ]
+          }
+        ]}
+        onActionOptionChange={handleActionChange}
+      />
+    );
+
+    const modelSelect = screen.getByRole("combobox", { name: "Model" });
+    const speedSelect = screen.getByRole("combobox", { name: "Reasoning speed" });
+
+    expect((modelSelect as HTMLSelectElement).value).toBe("qwen-plus");
+    expect((speedSelect as HTMLSelectElement).value).toBe("balanced");
+
+    await user.selectOptions(modelSelect, "qwen-max");
+
+    expect(handleActionChange).toHaveBeenCalledWith("model", "qwen-max");
+    expect(speedSelect).toBeTruthy();
+  });
 });
