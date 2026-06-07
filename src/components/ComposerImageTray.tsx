@@ -18,6 +18,9 @@ const GAP = 68;
 const CARD_WIDTH = 62;
 const CARD_HEIGHT = 76;
 const UPLOAD_BUTTON_SIZE = 41;
+const ACTIVE_AREA_PADDING_X = 42;
+const ACTIVE_AREA_PADDING_TOP = 52;
+const ACTIVE_AREA_PADDING_BOTTOM = 36;
 
 function isImageAttachment(attachment: ComposerAttachment): boolean {
   return attachment.type.startsWith("image/") || Boolean(attachment.previewUrl);
@@ -36,8 +39,10 @@ function getAngle(index: number): number {
   return ANGLE_LIST[index] ?? (index % 2 === 0 ? 4 : -4);
 }
 
-function getCardStyle(index: number, count: number, isExpanded: boolean): CSSProperties {
+function getCardStyle(index: number, count: number, isExpanded: boolean, isHovered: boolean): CSSProperties {
   const angle = getAngle(index);
+  const translateY = isHovered ? -16 : isExpanded ? -3 : 0;
+  const scale = isHovered ? 1.2 : 1;
 
   return {
     position: "absolute",
@@ -46,17 +51,17 @@ function getCardStyle(index: number, count: number, isExpanded: boolean): CSSPro
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     borderRadius: 4,
-    overflow: "hidden",
+    overflow: "visible",
     background: "#fff",
     border: "1px solid rgba(255, 255, 255, 0.86)",
     boxShadow: "0 8px 18px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.16)",
     transformOrigin: "center center",
-    transform: isExpanded ? `translateY(-3px) rotate(${angle}deg)` : `translateY(0) rotate(${angle}deg)`,
+    transform: `translateY(${translateY}px) rotate(${angle}deg) scale(${scale})`,
     transition:
       "left 0.45s cubic-bezier(.22, 1, .36, 1), top 0.45s cubic-bezier(.22, 1, .36, 1), transform 0.45s cubic-bezier(.22, 1, .36, 1), box-shadow 0.25s ease, opacity 0.25s ease",
     transitionDelay: isExpanded ? `${index * 35}ms` : `${(count - index) * 20}ms`,
     cursor: "pointer",
-    zIndex: index + 1
+    zIndex: isHovered ? 120 : index + 1
   };
 }
 
@@ -91,29 +96,28 @@ function getUploadStyle(count: number, isExpanded: boolean): CSSProperties {
   };
 }
 
-function getCloseStyle(count: number, isExpanded: boolean): CSSProperties {
-  const lastIndex = count - 1;
-
+function getRemoveStyle(isExpanded: boolean, isHovered: boolean): CSSProperties {
   return {
     position: "absolute",
-    left: isExpanded ? getExpandLeft(lastIndex) + 48 : 76,
-    top: isExpanded ? 6 : 10,
-    width: 20,
-    height: 20,
+    right: -10,
+    top: -10,
+    width: 24,
+    height: 24,
     borderRadius: "50%",
-    background: "#313a4b",
+    background: "rgba(49, 58, 75, 0.72)",
     color: "#fff",
-    border: "1px solid rgba(255, 255, 255, 0.08)",
+    border: "1px solid rgba(255, 255, 255, 0.18)",
     fontSize: 12,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 100,
-    opacity: isExpanded ? 1 : 0,
+    zIndex: 140,
+    opacity: isExpanded || isHovered ? 1 : 0,
+    backdropFilter: "blur(6px)",
     cursor: "pointer",
-    transition:
-      "left 0.45s cubic-bezier(.22, 1, .36, 1), top 0.45s cubic-bezier(.22, 1, .36, 1), opacity 0.2s ease",
-    transitionDelay: isExpanded ? `${lastIndex * 35}ms` : "0ms"
+    pointerEvents: isExpanded || isHovered ? "auto" : "none",
+    transition: "opacity 0.18s ease, transform 0.18s ease",
+    transform: isHovered ? "scale(1.08)" : "scale(1)"
   };
 }
 
@@ -139,6 +143,32 @@ function getEmptyUploadStyle(): CSSProperties {
   };
 }
 
+function getNameBadgeStyle(isVisible: boolean): CSSProperties {
+  return {
+    position: "absolute",
+    left: "50%",
+    top: -28,
+    zIndex: 10,
+    width: "max-content",
+    maxWidth: 180,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    borderRadius: 4,
+    background: "rgba(2, 6, 23, 0.82)",
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: 500,
+    lineHeight: "16px",
+    padding: "2px 6px",
+    textAlign: "center",
+    transform: "translateX(-50%)",
+    opacity: isVisible ? 1 : 0,
+    pointerEvents: "none",
+    transition: "opacity 0.15s ease"
+  };
+}
+
 export function ComposerImageTray({
   accept,
   attachments,
@@ -148,6 +178,7 @@ export function ComposerImageTray({
 }: ComposerImageTrayProps) {
   const stackRef = useRef<HTMLDivElement | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hoveredImageId, setHoveredImageId] = useState<string | null>(null);
   const [previewAttachment, setPreviewAttachment] = useState<ComposerAttachment | null>(null);
   const imageAttachments = useMemo(() => attachments.filter(isImageAttachment), [attachments]);
   const visibleImages = useMemo(() => imageAttachments, [imageAttachments]);
@@ -212,20 +243,17 @@ export function ComposerImageTray({
     const expandedRight = getExpandLeft(visibleImages.length) + CARD_WIDTH;
     const expandedBottom = COLLAPSED_TOP + CARD_HEIGHT + 10;
 
-    return x >= 0 && x <= expandedRight && y >= 0 && y <= expandedBottom;
+    return (
+      x >= -ACTIVE_AREA_PADDING_X &&
+      x <= expandedRight + ACTIVE_AREA_PADDING_X &&
+      y >= -ACTIVE_AREA_PADDING_TOP &&
+      y <= expandedBottom + ACTIVE_AREA_PADDING_BOTTOM
+    );
   };
 
   const handleStackMouseMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!isExpanded && isInsideActiveArea(event.clientX, event.clientY)) {
       setIsExpanded(true);
-    }
-  };
-
-  const handleRemoveFrontImage = () => {
-    const frontImage = visibleImages[visibleImages.length - 1];
-
-    if (frontImage) {
-      onRemove(frontImage.id);
     }
   };
 
@@ -263,8 +291,13 @@ export function ComposerImageTray({
             role="button"
             tabIndex={0}
             aria-label={`Preview ${attachment.name}`}
-            style={getCardStyle(index, visibleImages.length, isExpanded)}
-            onMouseEnter={() => setIsExpanded(true)}
+            title={attachment.name}
+            style={getCardStyle(index, visibleImages.length, isExpanded, hoveredImageId === attachment.id)}
+            onMouseEnter={() => {
+              setIsExpanded(true);
+              setHoveredImageId(attachment.id);
+            }}
+            onMouseLeave={() => setHoveredImageId((currentId) => (currentId === attachment.id ? null : currentId))}
             onClick={() => setPreviewAttachment(attachment)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -277,37 +310,41 @@ export function ComposerImageTray({
               <img
                 src={attachment.previewUrl}
                 alt={attachment.name}
+                title={attachment.name}
                 style={{
                   width: "100%",
                   height: "100%",
+                  borderRadius: 4,
                   objectFit: "cover",
                   display: "block"
                 }}
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-700">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded text-xs font-semibold text-slate-700">
                 {renderFallbackLabel(attachment.name)}
               </div>
             )}
+            <div style={getNameBadgeStyle(hoveredImageId === attachment.id)}>
+              {attachment.name}
+            </div>
+            <button
+              type="button"
+              aria-label={`Remove ${attachment.name}`}
+              data-testid="image-stack-remove"
+              style={getRemoveStyle(isExpanded, hoveredImageId === attachment.id)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onRemove(attachment.id);
+              }}
+            >
+              x
+            </button>
           </div>
         ))}
 
         {hasImages ? (
           <>
-            <button
-              type="button"
-              aria-label={`Remove ${visibleImages[0].name}`}
-              data-testid="image-stack-remove"
-              style={getCloseStyle(visibleImages.length, isExpanded)}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleRemoveFrontImage();
-              }}
-            >
-              x
-            </button>
-
             <AttachButton
               accept={accept}
               disabled={disabled}
@@ -332,7 +369,12 @@ export function ComposerImageTray({
           onClick={() => setPreviewAttachment(null)}
         >
           <div
-            className="relative max-h-full max-w-4xl rounded-[18px] border border-composer-border bg-composer-input p-3 shadow-composer"
+            className="relative rounded-[18px] border border-composer-border bg-composer-input p-3 shadow-composer"
+            style={{
+              width: "min(82vw, 1024px)",
+              maxHeight: "calc(100vh - 64px)",
+              overflow: "hidden"
+            }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-4">
@@ -353,10 +395,18 @@ export function ComposerImageTray({
               <img
                 src={previewAttachment.previewUrl}
                 alt={previewAttachment.name}
-                className="max-h-[72vh] max-w-[82vw] rounded-xl object-contain"
+                className="rounded-xl object-contain"
+                style={{
+                  display: "block",
+                  maxWidth: "100%",
+                  maxHeight: "calc(100vh - 150px)",
+                  width: "auto",
+                  height: "auto",
+                  margin: "0 auto"
+                }}
               />
             ) : (
-              <div className="flex h-[320px] w-[480px] max-w-[82vw] items-center justify-center rounded-xl bg-composer-chip text-4xl font-semibold text-composer-text">
+              <div className="flex h-[320px] w-full items-center justify-center rounded-xl bg-composer-chip text-4xl font-semibold text-composer-text">
                 {renderFallbackLabel(previewAttachment.name)}
               </div>
             )}

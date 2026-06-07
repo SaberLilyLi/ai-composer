@@ -82,6 +82,7 @@ function AttachmentGrid({ attachments }: { attachments: Attachment[] }) {
               key={attachment.id}
               src={attachment.url}
               alt={attachment.name ?? "Image attachment"}
+              title={attachment.name ?? "Image attachment"}
               className="aspect-square w-full rounded-[18px] border border-composer-softBorder object-cover"
             />
           ))}

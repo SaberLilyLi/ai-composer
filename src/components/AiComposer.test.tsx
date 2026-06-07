@@ -146,7 +146,7 @@ describe("AiComposer", () => {
     expect(screen.getByLabelText("Add image").textContent).toBe("+");
   });
 
-  it("removes the newest visible image from the stack action", async () => {
+  it("removes a selected expanded image from its own stack action", async () => {
     const user = userEvent.setup();
     const attachments = Array.from({ length: 3 }, (_, index) => ({
       id: `remove-image-${index}`,
@@ -160,15 +160,15 @@ describe("AiComposer", () => {
 
     render(<AiComposer defaultAttachments={attachments} />);
 
-    const frontCard = screen.getAllByTestId("image-stack-item")[2];
-    await user.hover(frontCard);
-    await user.click(screen.getByTestId("image-stack-remove"));
+    const middleCard = screen.getAllByTestId("image-stack-item")[1];
+    await user.hover(middleCard);
+    await user.click(screen.getByRole("button", { name: "Remove remove-image-1.png" }));
 
-    expect(screen.queryByRole("button", { name: "Preview remove-image-2.png" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Preview remove-image-1.png" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Preview remove-image-1.png" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Preview remove-image-2.png" })).toBeTruthy();
   });
 
-  it("submits on Enter and enables stop state", async () => {
+  it("submits on Enter and disables send by default while waiting", async () => {
     const user = userEvent.setup();
     const handleSend = vi.fn();
 
@@ -179,8 +179,41 @@ describe("AiComposer", () => {
     await user.keyboard("{Enter}");
 
     expect(handleSend).toHaveBeenCalledWith("hello", { attachments: [] });
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", true);
+    expect(screen.getByText("Generating...").className).toContain("sr-only");
+  });
+
+  it("shows configurable status text and action hint when enabled", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AiComposer
+        showStatusText
+        statusTextMap={{ generating: "正在生成..." }}
+        actionHint="预计 10 秒"
+        onSend={() => undefined}
+      />
+    );
+
+    const input = screen.getByLabelText("AI Composer Input");
+    await user.type(input, "hello");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("正在生成...").className).not.toContain("sr-only");
+    expect(screen.getByText("预计 10 秒")).toBeTruthy();
+  });
+
+  it("shows stop state when enabled", async () => {
+    const user = userEvent.setup();
+
+    render(<AiComposer showStopButton onSend={() => undefined} />);
+
+    const input = screen.getByLabelText("AI Composer Input");
+    await user.type(input, "hello");
+    await user.keyboard("{Enter}");
+
     expect(screen.getByRole("button", { name: "Stop" })).toHaveProperty("disabled", false);
-    expect(screen.getByText("Generating...")).toBeTruthy();
   });
 
   it("keeps newline behavior on Shift+Enter", async () => {
@@ -201,7 +234,7 @@ describe("AiComposer", () => {
     const user = userEvent.setup();
     const handleStop = vi.fn();
 
-    render(<AiComposer onSend={() => undefined} onStop={handleStop} />);
+    render(<AiComposer showStopButton onSend={() => undefined} onStop={handleStop} />);
 
     const input = screen.getByLabelText("AI Composer Input");
     await user.type(input, "hello");
@@ -209,7 +242,7 @@ describe("AiComposer", () => {
     await user.click(screen.getByRole("button", { name: "Stop" }));
 
     expect(handleStop).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Ready")).toBeTruthy();
+    expect(screen.getByText("Ready").className).toContain("sr-only");
   });
 
   it("reports upload validation errors", async () => {

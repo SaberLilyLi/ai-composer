@@ -57,6 +57,9 @@ describe("SDK packaging", () => {
     expect("SchemaValidator" in coreSdk).toBe(true);
     expect("WorkspaceFactory" in coreSdk).toBe(true);
     expect("PluginManager" in coreSdk).toBe(true);
+    expect("ConversationRuntime" in coreSdk).toBe(true);
+    expect("GPTProvider" in coreSdk).toBe(true);
+    expect("GPTImageProvider" in coreSdk).toBe(true);
     expect("requestAgentChat" in coreSdk).toBe(false);
     expect("requestAgentImage" in coreSdk).toBe(false);
     expect("getAgentRuntimeConfig" in coreSdk).toBe(false);

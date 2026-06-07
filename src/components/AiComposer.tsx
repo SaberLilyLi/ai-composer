@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ComposerCore } from "../core/ComposerCore";
 import type {
@@ -35,6 +36,11 @@ export interface AiComposerProps {
   mentions?: MentionItem[];
   commands?: CommandItem[];
   showActionOptions?: boolean;
+  showStopButton?: boolean;
+  showStatusText?: boolean;
+  statusText?: string;
+  statusTextMap?: Partial<Record<ComposerState["phase"], string>>;
+  actionHint?: ReactNode;
   actionOptions?: ComposerActionOption[];
   onChange?: (value: string) => void;
   onActionOptionChange?: (id: string, value: string) => void;
@@ -63,6 +69,11 @@ export function AiComposer({
   mentions = [],
   commands = [],
   showActionOptions = false,
+  showStopButton = false,
+  showStatusText = false,
+  statusText,
+  statusTextMap,
+  actionHint,
   actionOptions,
   onChange,
   onActionOptionChange,
@@ -116,9 +127,7 @@ export function AiComposer({
       const sendResult = onSend?.(nextValue, { attachments });
 
       if (sendResult && typeof sendResult === "object" && "then" in sendResult) {
-        void sendResult.catch(() => {
-          core.setPhase("idle");
-        });
+        void sendResult.finally(() => core.setPhase("idle"));
       }
     });
     const unsubscribeStop = core.onStop(() => {
@@ -172,7 +181,7 @@ export function AiComposer({
   }, [core, onAttachmentError, onAttachmentsChange]);
 
   const canSend = state.value.trim().length > 0 && state.phase !== "generating" && !state.disabled;
-  const canStop = state.phase === "generating";
+  const canStop = showStopButton && state.phase === "generating";
   const imageAttachmentCount = state.attachments.filter((attachment) => {
     return attachment.type.startsWith("image/") || attachment.previewUrl;
   }).length;
@@ -260,11 +269,18 @@ export function AiComposer({
 
       <AttachmentList attachments={state.attachments} onRemove={(id) => core.removeAttachment(id)} />
       <div className="mt-auto flex min-h-14 items-center gap-4 border-t border-composer-softBorder pt-3">
-        <ComposerStatusSlot phase={state.phase} />
+        <ComposerStatusSlot
+          phase={state.phase}
+          showStatusText={showStatusText}
+          statusText={statusText}
+          statusTextMap={statusTextMap}
+        />
         <ComposerActions
           canSend={canSend}
           canStop={canStop}
+          showStopButton={showStopButton}
           showActionOptions={showActionOptions}
+          actionHint={actionHint}
           actionOptions={actionOptions}
           onActionOptionChange={onActionOptionChange}
           onSend={() => core.send()}

@@ -2,7 +2,10 @@ export {
   createAiStudio,
   SchemaValidator,
   WorkspaceFactory,
-  PluginManager
+  PluginManager,
+  ConversationRuntime,
+  GPTProvider,
+  GPTImageProvider
 } from "./core";
 
 export type {
@@ -15,3 +18,9 @@ export type {
   WorkspaceHandle,
   WorkspaceInstance
 } from "./core";
+
+export type {
+  Attachment,
+  Message,
+  WorkflowStep
+} from "./types";

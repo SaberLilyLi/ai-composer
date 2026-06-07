@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { SendButton } from "./SendButton";
 import { StopButton } from "./StopButton";
 import type { ComposerActionOption } from "../core/types";
@@ -5,7 +6,9 @@ import type { ComposerActionOption } from "../core/types";
 interface ComposerActionsProps {
   canSend: boolean;
   canStop: boolean;
+  showStopButton?: boolean;
   showActionOptions?: boolean;
+  actionHint?: ReactNode;
   actionOptions?: ComposerActionOption[];
   onActionOptionChange?: (id: string, value: string) => void;
   onSend: () => void;
@@ -36,7 +39,9 @@ const DEFAULT_ACTION_OPTIONS: ComposerActionOption[] = [
 export function ComposerActions({
   canSend,
   canStop,
+  showStopButton = false,
   showActionOptions = false,
+  actionHint,
   actionOptions,
   onActionOptionChange,
   onSend,
@@ -74,8 +79,13 @@ export function ComposerActions({
       ) : (
         <div />
       )}
-      <div className="flex shrink-0 items-center gap-2">
-        {canStop ? <StopButton disabled={!canStop} onClick={onStop} /> : <SendButton disabled={!canSend} onClick={onSend} />}
+      <div className="flex shrink-0 items-center gap-3">
+        {actionHint ? <div className="max-w-[220px] truncate text-sm text-composer-muted">{actionHint}</div> : null}
+        {showStopButton && canStop ? (
+          <StopButton disabled={!canStop} onClick={onStop} />
+        ) : (
+          <SendButton disabled={!canSend} onClick={onSend} />
+        )}
       </div>
     </div>
   );

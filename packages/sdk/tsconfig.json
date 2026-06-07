@@ -7,7 +7,9 @@
     "paths": {
       "@company/ai-composer": ["../react/dist/index.d.ts"],
       "@company/ai-composer-core": ["../core/dist/index.d.ts"],
-      "@company/ai-composer-vue": ["../vue/dist/index.d.ts"]
+      "@company/ai-composer-vue": ["../vue/dist/index.d.ts"],
+      "@company/ai-composer-providers": ["../providers/dist/index.d.ts"],
+      "@company/ai-composer-shared": ["../shared/src/index.ts"]
     },
     "resolveJsonModule": true,
     "declaration": true,

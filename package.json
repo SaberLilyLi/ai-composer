@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.11.1",
   "scripts": {
-    "build": "pnpm --filter @company/ai-composer-shared build && pnpm --filter @company/ai-composer-providers build && pnpm --filter @company/ai-composer-core build && pnpm --filter @company/ai-composer build && pnpm --filter @company/ai-composer-vue build && pnpm --filter @company/ai-studio-sdk build && pnpm --filter ai-studio build && pnpm --filter @company/ai-composer-playground build",
+    "build": "pnpm --filter @company/ai-composer-shared build && pnpm --filter @company/ai-composer-providers build && pnpm --filter @company/ai-composer-core build && pnpm --filter @company/ai-composer build && pnpm --filter @company/ai-studio-sdk-vue build && pnpm --filter @company/ai-studio-sdk build && pnpm --filter ai-studio build && pnpm --filter @company/ai-composer-playground build",
     "test": "pnpm build && pnpm --filter @company/ai-composer-providers test && pnpm --filter @company/ai-composer-core test && pnpm --filter @company/ai-composer test && pnpm --filter @company/ai-studio-sdk test && pnpm --filter ai-studio test",
     "dev": "pnpm --filter @company/ai-composer-playground dev",
     "storybook": "pnpm --filter @company/ai-composer storybook",
