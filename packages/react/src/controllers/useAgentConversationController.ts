@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ConversationRuntime, requestAgentImage } from "@company/ai-composer-core";
-import { GPTProvider } from "@company/ai-composer-providers";
+import {
+  ConversationRuntime,
+  WorkflowRuntime,
+  createRuntimeProviderBundle
+} from "@company/ai-composer-core";
 import type {
+  Attachment,
   ComposerActionOption,
   ComposerAttachment,
   Message,
@@ -224,20 +228,75 @@ function readConversationCache(
   }
 }
 
-function createProviders(config: AgentRuntimeConfig) {
-  const chatProvider = new GPTProvider({
+function buildConversationRuntime(config: AgentRuntimeConfig): ConversationRuntime {
+  return new ConversationRuntime(
+    createRuntimeProviderBundle({
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl,
+      chatEndpoint: config.chatEndpoint,
+      imageEndpoint: config.imageEndpoint,
+      chatModel: config.chatModel,
+      imageModel: config.imageModel,
+      timeout: config.timeout,
+      maxRetries: config.maxRetries
+    }).chat
+  );
+}
+
+function buildWorkflowRuntime(config: AgentRuntimeConfig): WorkflowRuntime {
+  const runtime = new WorkflowRuntime();
+  const providers = createRuntimeProviderBundle({
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,
-    model: config.chatModel,
+    chatEndpoint: config.chatEndpoint,
+    imageEndpoint: config.imageEndpoint,
+    chatModel: config.chatModel,
+    imageModel: config.imageModel,
     timeout: config.timeout,
     maxRetries: config.maxRetries
   });
 
-  return { chatProvider };
+  runtime.providers.registerProvider("chat", providers.chat);
+  runtime.providers.registerProvider("image", providers.image);
+  runtime.providers.registerProvider("workflowAnalyzer", providers.workflowAnalyzer as any);
+  runtime.providers.registerProvider("promptOptimizer", providers.promptOptimizer as any);
+  return runtime;
 }
 
-function buildConversationRuntime(config: AgentRuntimeConfig): ConversationRuntime {
-  return new ConversationRuntime(createProviders(config).chatProvider);
+function toMessageAttachments(attachments: ComposerAttachment[]): Attachment[] {
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    type: attachment.type.startsWith("image/") ? "image" : "file",
+    url: attachment.previewUrl ?? "",
+    name: attachment.name,
+    mimeType: attachment.type
+  }));
+}
+
+function toAttachmentDataUrls(attachments: ComposerAttachment[]): Promise<string[]> {
+  return Promise.all(
+    attachments
+      .filter((attachment) => attachment.type.startsWith("image/"))
+      .map((attachment) => fileToDataUrl(attachment.file))
+  );
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error(`Failed to read "${file.name}" as a data URL.`));
+    };
+
+    reader.onerror = () => reject(new Error(`Failed to read "${file.name}".`));
+    reader.readAsDataURL(file);
+  });
 }
 
 export interface UseAgentConversationControllerOptions {
@@ -317,6 +376,7 @@ export function useAgentConversationController({
   );
   const initialCache = useMemo(() => readConversationCache(runtimeConfig, initialMode), [initialMode, runtimeConfig]);
   const conversationRuntimeRef = useRef<ConversationRuntime | null>(null);
+  const workflowRuntimeRef = useRef<WorkflowRuntime | null>(null);
   const [mode, setModeState] = useState<AgentMode>(initialCache.mode);
   const [selectedChatModel, setSelectedChatModelState] = useState(initialCache.selectedChatModel);
   const [selectedImageModel, setSelectedImageModelState] = useState(initialCache.selectedImageModel);
@@ -364,7 +424,9 @@ export function useAgentConversationController({
 
   const resetRuntimes = () => {
     conversationRuntimeRef.current?.abort();
+    workflowRuntimeRef.current?.abort();
     conversationRuntimeRef.current = null;
+    workflowRuntimeRef.current = null;
   };
 
   const resetConversation = () => {
@@ -398,118 +460,88 @@ export function useAgentConversationController({
       if (mode === "chat") {
         const runtime = buildConversationRuntime({ ...runtimeConfig, chatModel: selectedChatModel });
         conversationRuntimeRef.current = runtime;
-        runtime.onMessage(({ message }) => setMessages((current) => current.concat(message)));
-        runtime.onStreaming(({ message }) => setMessages((current) => current.concat(message)));
+        runtime.onStart(() => {
+          setMessages(runtime.getState().messages);
+          setError("");
+        });
+        runtime.onMessage(() => {
+          setMessages(runtime.getState().messages);
+          setError(runtime.getState().error ?? "");
+        });
+        runtime.onStreaming(() => {
+          setMessages(runtime.getState().messages);
+        });
+        runtime.onComplete(() => {
+          setMessages(runtime.getState().messages);
+          setWorkflowSteps([]);
+          setError("");
+        });
+        runtime.onError(({ error: runtimeError }) => {
+          setMessages(runtime.getState().messages);
+          setError(runtimeError.message);
+        });
+        runtime.onAbort(() => {
+          setMessages(runtime.getState().messages);
+        });
 
         await runtime.send(trimmedValue);
-        setWorkflowSteps([]);
         return;
       }
 
-      const userMessage = createMessage("user", trimmedValue, {
-        attachments: context.attachments.map((attachment) => ({
-          id: attachment.id,
-          type: attachment.type.startsWith("image/") ? "image" : "file",
-          url: attachment.previewUrl ?? "",
-          name: attachment.name,
-          mimeType: attachment.type
-        })),
-        status: "success"
+      const runtime = buildWorkflowRuntime({
+        ...runtimeConfig,
+        chatModel: selectedChatModel,
+        imageModel: selectedImageModel
       });
-      setMessages((current) => current.concat(userMessage));
-      setWorkflowSteps([
-        {
-          id: `image-step-${Date.now()}`,
-          type: context.attachments.some((attachment) => attachment.type.startsWith("image/")) ? "image_edit" : "image_generate",
-          title: "Image generation",
-          prompt: trimmedValue,
-          status: "running",
-          startedAt: Date.now(),
-          provider: selectedImageModel
-        }
-      ]);
+      workflowRuntimeRef.current = runtime;
+      runtime.onStart(({ state }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+        setError("");
+      });
+      runtime.onStepStart(({ state }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+      });
+      runtime.onStepSuccess(({ state }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+      });
+      runtime.onStepError(({ state, error: stepError }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+        setError(stepError instanceof Error ? stepError.message : "Workflow step failed.");
+      });
+      runtime.onComplete(({ state }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+        setError(state.error ?? "");
+      });
+      runtime.onAbort(({ state }) => {
+        setMessages(state.messages);
+        setWorkflowSteps(state.steps);
+      });
 
-      const result = await (
-        requestAgentImage as unknown as (input: {
-          config: {
-            apiKey: string;
-            baseUrl: string;
-            chatEndpoint?: string;
-            imageEndpoint?: string;
-            chatModel: string;
-            imageModel: string;
-          };
-          prompt: string;
-          attachments: ComposerAttachment[];
-          options?: AgentImageGenerationOptions;
-          signal?: AbortSignal;
-        }) => Promise<{ images: string[]; text: string; model: string }>
-      )({
-        config: {
-          apiKey: runtimeConfig.apiKey,
-          baseUrl: runtimeConfig.baseUrl,
-          chatEndpoint: runtimeConfig.chatEndpoint,
-          imageEndpoint: runtimeConfig.imageEndpoint,
-          imageModel: selectedImageModel,
-          chatModel: selectedChatModel
-        },
-        prompt: trimmedValue,
-        attachments: context.attachments,
-        options: {
+      await runtime.runPrompt(trimmedValue, {
+        attachments: await toAttachmentDataUrls(context.attachments),
+        messageAttachments: toMessageAttachments(context.attachments),
+        imageOptions: {
           count: imageCount,
           resolution: imageResolution,
           size: imageSize
         }
       });
-
-      setMessages((current) =>
-        current.concat(
-          createMessage("assistant", result.text, {
-            status: "success",
-            attachments: result.images.map((image, index) => ({
-              id: `generated-image-${Date.now()}-${index}`,
-              type: "image",
-              url: image,
-              name: `Generated ${index + 1}`,
-              mimeType: "image/png"
-            }))
-          })
-        )
-      );
-      setWorkflowSteps((current) =>
-        current.map((step) => ({
-          ...step,
-          status: "success",
-          completedAt: Date.now()
-        }))
-      );
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Request failed.";
 
       if ((requestError as Error).name === "AbortError") {
-        setMessages((current) => current.concat(createMessage("system", "Generation stopped.", { status: "success" })));
-        setWorkflowSteps((current) =>
-          current.map((step) => ({
-            ...step,
-            status: "error",
-            error: "Generation stopped.",
-            completedAt: Date.now()
-          }))
-        );
+        setError("");
       } else {
         setError(message);
-        setMessages((current) => current.concat(createMessage("system", message, { status: "error" })));
-        setWorkflowSteps((current) =>
-          current.map((step) => ({
-            ...step,
-            status: "error",
-            error: message,
-            completedAt: Date.now()
-          }))
-        );
       }
     } finally {
       conversationRuntimeRef.current = null;
+      workflowRuntimeRef.current = null;
       setIsBusy(false);
       resetComposer();
     }
@@ -517,6 +549,7 @@ export function useAgentConversationController({
 
   const handleStop = () => {
     conversationRuntimeRef.current?.abort();
+    workflowRuntimeRef.current?.abort();
   };
 
   const handleActionOptionChange = (id: string, value: string) => {
@@ -679,6 +712,9 @@ export function useAgentConversationController({
     mode,
     modeSwitchConfig: uiConfig.modeSwitch,
     resetConversation,
+    retryConversation: () => conversationRuntimeRef.current?.retry(),
+    retryWorkflow: () => workflowRuntimeRef.current?.retryWorkflow(),
+    retryWorkflowStep: (stepId: string) => workflowRuntimeRef.current?.retryStep(stepId),
     setMode: (nextMode: AgentMode) => switchConversation(nextMode),
     uploadOptions,
     workflowSteps

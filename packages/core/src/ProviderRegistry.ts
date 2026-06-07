@@ -130,11 +130,11 @@ export class ProviderRegistry {
   }
 
   getProviderForStep(type: WorkflowStepType): ChatProvider | ImageProvider | VideoProvider | AgentProvider | undefined {
-    if (this.state.image?.getCapability?.().supports.includes(type)) {
+    if (getSupportedSteps(this.state.image?.getCapability?.()).includes(type)) {
       return this.state.image;
     }
 
-    if (this.state.chat?.getCapability?.().supports.includes(type)) {
+    if (getSupportedSteps(this.state.chat?.getCapability?.()).includes(type)) {
       return this.state.chat;
     }
 
@@ -152,13 +152,26 @@ export class ProviderRegistry {
 
 function normalizeProviderCapability(capability: ProviderCapability): ProviderCapability {
   return {
+    providerName: capability.providerName ?? capability.provider,
+    model: capability.model ?? capability.provider,
+    supportedSteps: capability.supportedSteps ?? capability.supports,
     inputTypes: inferInputTypes(capability.supports),
     outputTypes: inferOutputTypes(capability.supports),
+    attachments: capability.attachments ?? supportsAttachments(capability.supports),
     streaming: false,
     batch: false,
     configurable: false,
+    maxImages: capability.maxImages ?? inferMaxImages(capability.supports),
     ...capability
   };
+}
+
+function getSupportedSteps(capability?: ProviderCapability): WorkflowStepType[] {
+  if (!capability) {
+    return [];
+  }
+
+  return capability.supportedSteps ?? capability.supports;
 }
 
 function inferInputTypes(supports: WorkflowStepType[]): ProviderCapability["inputTypes"] {
@@ -183,4 +196,12 @@ function inferOutputTypes(supports: WorkflowStepType[]): ProviderCapability["out
   }
 
   return ["text"];
+}
+
+function supportsAttachments(supports: WorkflowStepType[]): boolean {
+  return supports.some((type) => type.includes("image") || type === "chat");
+}
+
+function inferMaxImages(supports: WorkflowStepType[]): number | undefined {
+  return supports.some((type) => type.includes("image")) ? 4 : undefined;
 }

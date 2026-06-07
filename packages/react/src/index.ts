@@ -8,6 +8,12 @@ export { WorkflowTimeline } from "./components/WorkflowTimeline";
 export type { WorkflowTimelineProps } from "./components/WorkflowTimeline";
 export { AgentConversationWorkspace } from "./components/AgentConversationWorkspace";
 export type { AgentConversationWorkspaceProps } from "./components/AgentConversationWorkspace";
+export { AiStudioProvider, useAiStudio } from "./studio/AiStudioProvider";
+export type { AiStudioProviderProps } from "./studio/AiStudioProvider";
+export { AiStudioWorkspace } from "./studio/AiStudioWorkspace";
+export type { AiStudioWorkspaceProps } from "./studio/AiStudioWorkspace";
+export { AiStudioDevtools } from "./studio/AiStudioDevtools";
+export type { AiStudioDevtoolsProps } from "./studio/AiStudioDevtools";
 export type {
   AgentChatUIConfig,
   AgentConversationConfig,
@@ -23,6 +29,8 @@ export { createReactAdapter } from "./adapters/react";
 export {
   ComposerCore,
   ContextManager,
+  createAiStudio,
+  DocumentationGenerator,
   UploadManager,
   getAgentRuntimeConfig,
   requestAgentChat,
@@ -30,6 +38,8 @@ export {
   toAttachmentPreviews,
   CommandPlugin,
   MentionPlugin,
-  UploadPlugin
+  UploadPlugin,
+  SchemaValidator,
+  WorkspaceFactory
 } from "@company/ai-composer-core";
 export type * from "@company/ai-composer-core";

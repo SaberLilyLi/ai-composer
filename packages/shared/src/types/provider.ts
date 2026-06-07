@@ -5,12 +5,17 @@ export type ProviderIOType = "text" | "image" | "video" | "audio";
 export interface ProviderCapability {
   provider: string;
   supports: WorkflowStepType[];
+  providerName?: string;
+  model?: string;
+  supportedSteps?: WorkflowStepType[];
   inputTypes?: ProviderIOType[];
   outputTypes?: ProviderIOType[];
+  attachments?: boolean;
   streaming?: boolean;
   batch?: boolean;
   configurable?: boolean;
   maxFiles?: number;
+  maxImages?: number;
   metadata?: Record<string, unknown>;
 }
 

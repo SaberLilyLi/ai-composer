@@ -45,7 +45,7 @@ interface ChatRequestOptions {
 interface ImageRequestOptions {
   config: AgentRuntimeConfig;
   prompt: string;
-  attachments: ComposerAttachment[];
+  attachments: Array<ComposerAttachment | string>;
   options?: AgentImageGenerationOptions;
   signal?: AbortSignal;
 }
@@ -118,10 +118,10 @@ export async function requestAgentImage({
   const endpoint = config.imageEndpoint || DEFAULT_IMAGE_ENDPOINT;
   const imageContents: WanContentImage[] = await Promise.all(
     attachments
-      .filter((attachment) => attachment.type.startsWith("image/"))
+      .filter(isImageAttachmentInput)
       .slice(0, 9)
       .map(async (attachment) => ({
-        image: await fileToDataUrl(attachment.file)
+        image: typeof attachment === "string" ? attachment : await fileToDataUrl(attachment.file)
       }))
   );
   const content: Array<WanContentImage | WanContentText> = [...imageContents, { text: prompt }];
@@ -155,6 +155,14 @@ export async function requestAgentImage({
     text: "Image generation completed.",
     model: data?.model || config.imageModel
   };
+}
+
+function isImageAttachmentInput(attachment: ComposerAttachment | string): boolean {
+  if (typeof attachment === "string") {
+    return attachment.startsWith("data:") || attachment.startsWith("http") || attachment.startsWith("mock://");
+  }
+
+  return attachment.type.startsWith("image/");
 }
 
 function normalizeImageCount(count?: number): number {

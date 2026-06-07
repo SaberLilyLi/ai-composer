@@ -1,4 +1,4 @@
-import type { Message, WorkflowStep } from "@company/ai-composer-shared";
+import type { Attachment, Message, WorkflowStep } from "@company/ai-composer-shared";
 import { EventBus } from "./EventBus";
 import { ConversationEngine } from "./ConversationEngine";
 import { PromptParser } from "./PromptParser";
@@ -20,6 +20,12 @@ export interface WorkflowRuntimeState {
 export interface WorkflowRuntimeInput {
   prompt: string;
   attachments?: string[];
+  messageAttachments?: Attachment[];
+  imageOptions?: {
+    count?: number;
+    resolution?: string;
+    size?: string;
+  };
 }
 
 interface WorkflowRuntimeEvents {
@@ -73,8 +79,13 @@ export class WorkflowRuntime {
     return this.events.on("abort", handler);
   }
 
-  async runPrompt(prompt: string, options: { attachments?: string[] } = {}): Promise<{ messages: Message[]; steps: WorkflowStep[] }> {
-    this.lastInput = { prompt, attachments: options.attachments ?? [] };
+  async runPrompt(prompt: string, options: { attachments?: string[]; messageAttachments?: Attachment[]; imageOptions?: WorkflowRuntimeInput["imageOptions"] } = {}): Promise<{ messages: Message[]; steps: WorkflowStep[] }> {
+    this.lastInput = {
+      prompt,
+      attachments: options.attachments ?? [],
+      messageAttachments: options.messageAttachments ?? [],
+      imageOptions: options.imageOptions
+    };
     this.controller = new AbortController();
     const controller = this.controller;
     const analyzedSteps = await this.analyzePrompt(prompt, controller.signal);
@@ -86,6 +97,15 @@ export class WorkflowRuntime {
       status: "waiting" as const
     }));
 
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: prompt,
+      attachments: options.messageAttachments,
+      createdAt: Date.now(),
+      status: "success"
+    };
+    this.conversation.addMessage(userMessage);
     this.state = {
       status: "running",
       steps,
@@ -103,6 +123,7 @@ export class WorkflowRuntime {
       const result = await engine.execute(steps, {
         signal: controller.signal,
         attachments: options.attachments,
+        imageOptions: options.imageOptions,
         onStepStart: (step) => {
           this.updateStep(step);
           this.events.emit("stepStart", { step, state: this.state });
@@ -125,16 +146,10 @@ export class WorkflowRuntime {
       }
 
       this.conversation.addMessage({
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: prompt,
-        createdAt: Date.now(),
-        status: "success"
-      });
-      this.conversation.addMessage({
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: typeof result.finalOutput === "string" ? result.finalOutput : JSON.stringify(result.finalOutput ?? {}),
+        content: getFinalMessageContent(result.finalOutput),
+        attachments: getFinalMessageAttachments(result.finalOutput),
         createdAt: Date.now(),
         status: "success"
       });
@@ -195,7 +210,11 @@ export class WorkflowRuntime {
       throw new Error("No workflow is available to retry.");
     }
 
-    return this.runPrompt(this.lastInput.prompt, { attachments: this.lastInput.attachments });
+    return this.runPrompt(this.lastInput.prompt, {
+      attachments: this.lastInput.attachments,
+      messageAttachments: this.lastInput.messageAttachments,
+      imageOptions: this.lastInput.imageOptions
+    });
   }
 
   async retryStep(stepId: string): Promise<WorkflowStep> {
@@ -265,4 +284,39 @@ function createAbortError(): Error {
   const error = new Error("Workflow execution aborted.");
   error.name = "AbortError";
   return error;
+}
+
+function getFinalMessageContent(finalOutput: unknown): string {
+  if (typeof finalOutput === "string") {
+    return finalOutput;
+  }
+
+  if (finalOutput && typeof finalOutput === "object" && "text" in finalOutput && typeof (finalOutput as { text?: unknown }).text === "string") {
+    return (finalOutput as { text: string }).text;
+  }
+
+  if (finalOutput && typeof finalOutput === "object" && "images" in finalOutput) {
+    return "Workflow execution completed.";
+  }
+
+  return JSON.stringify(finalOutput ?? {});
+}
+
+function getFinalMessageAttachments(finalOutput: unknown): Attachment[] | undefined {
+  if (
+    finalOutput &&
+    typeof finalOutput === "object" &&
+    "images" in finalOutput &&
+    Array.isArray((finalOutput as { images?: unknown }).images)
+  ) {
+    return ((finalOutput as { images: string[] }).images ?? []).map((url, index) => ({
+      id: `workflow-image-${Date.now()}-${index}`,
+      type: "image",
+      url,
+      name: `Generated ${index + 1}`,
+      mimeType: "image/png"
+    }));
+  }
+
+  return undefined;
 }

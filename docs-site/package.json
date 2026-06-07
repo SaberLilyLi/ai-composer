@@ -1,0 +1,14 @@
+{
+  "name": "ai-studio-docs-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node --experimental-specifier-resolution=node ./scripts/generate.mjs",
+    "dev": "pnpm exec vitepress dev .",
+    "build": "pnpm generate && pnpm exec vitepress build .",
+    "preview": "pnpm exec vitepress preview ."
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

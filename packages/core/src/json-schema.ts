@@ -1,0 +1,148 @@
+import { featureNames, workspaceKinds, type FeatureSchema, type ProviderSchema, type ThemeSchema, type WorkspaceSchema } from "./schema";
+
+export interface JsonSchemaDocument {
+  $schema: string;
+  $id: string;
+  title: string;
+  type: "object";
+  additionalProperties: boolean;
+  properties: Record<string, unknown>;
+  required?: string[];
+  definitions?: Record<string, unknown>;
+}
+
+export interface SchemaExportBundle {
+  workspace: JsonSchemaDocument;
+  provider: JsonSchemaDocument;
+  feature: JsonSchemaDocument;
+  theme: JsonSchemaDocument;
+}
+
+export class SchemaExporter {
+  exportAll(): SchemaExportBundle {
+    return {
+      workspace: this.exportWorkspaceSchema(),
+      provider: this.exportProviderSchema(),
+      feature: this.exportFeatureSchema(),
+      theme: this.exportThemeSchema()
+    };
+  }
+
+  exportWorkspaceSchema(): JsonSchemaDocument {
+    return {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://company.local/schemas/workspace.schema.json",
+      title: "WorkspaceSchema",
+      type: "object",
+      additionalProperties: false,
+      required: ["workspace", "provider", "chatModel", "imageModel", "features", "theme", "providerConfig"],
+      properties: {
+        workspace: {
+          type: "string",
+          enum: [...workspaceKinds]
+        },
+        provider: {
+          type: "string",
+          minLength: 1
+        },
+        chatModel: {
+          type: "string",
+          minLength: 1
+        },
+        imageModel: {
+          type: "string",
+          minLength: 1
+        },
+        features: {
+          type: "array",
+          uniqueItems: true,
+          items: {
+            type: "string",
+            enum: [...featureNames]
+          }
+        },
+        theme: {
+          $ref: "#/definitions/ThemeSchema"
+        },
+        providerConfig: {
+          $ref: "#/definitions/ProviderSchema"
+        }
+      },
+      definitions: {
+        ThemeSchema: this.exportThemeSchema(),
+        ProviderSchema: this.exportProviderSchema()
+      }
+    };
+  }
+
+  exportProviderSchema(): JsonSchemaDocument {
+    return {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://company.local/schemas/provider.schema.json",
+      title: "ProviderSchema",
+      type: "object",
+      additionalProperties: false,
+      required: ["provider", "apiKey", "baseUrl", "chatModel", "imageModel", "timeout", "maxRetries"],
+      properties: {
+        provider: { type: "string", minLength: 1 },
+        apiKey: { type: "string" },
+        baseUrl: { type: "string", minLength: 1 },
+        chatModel: { type: "string", minLength: 1 },
+        imageModel: { type: "string", minLength: 1 },
+        timeout: { type: "number", minimum: 1 },
+        maxRetries: { type: "number", minimum: 0 }
+      }
+    };
+  }
+
+  exportFeatureSchema(): JsonSchemaDocument {
+    return {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://company.local/schemas/feature.schema.json",
+      title: "FeatureSchema",
+      type: "object",
+      additionalProperties: false,
+      required: [...featureNames],
+      properties: Object.fromEntries(featureNames.map((feature) => [feature, { type: "boolean" }]))
+    };
+  }
+
+  exportThemeSchema(): JsonSchemaDocument {
+    return {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://company.local/schemas/theme.schema.json",
+      title: "ThemeSchema",
+      type: "object",
+      additionalProperties: false,
+      required: ["mode", "tokens"],
+      properties: {
+        mode: {
+          type: "string",
+          enum: ["light", "dark", "auto"]
+        },
+        tokens: {
+          type: "object",
+          additionalProperties: {
+            type: "string"
+          }
+        }
+      }
+    };
+  }
+
+  introspect(schema: keyof SchemaExportBundle): { name: string; properties: string[]; required: string[] } {
+    const document = this.exportAll()[schema];
+    return {
+      name: document.title,
+      properties: Object.keys(document.properties),
+      required: document.required ?? []
+    };
+  }
+}
+
+export type {
+  FeatureSchema,
+  ProviderSchema,
+  ThemeSchema,
+  WorkspaceSchema
+};

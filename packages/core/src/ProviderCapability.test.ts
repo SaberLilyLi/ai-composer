@@ -12,22 +12,32 @@ describe("ProviderCapability 2.0", () => {
     expect(registry.listCapabilities()).toEqual([
       {
         provider: "mock-chat",
+        providerName: "mock-chat",
+        model: "mock-chat",
         supports: ["chat"],
+        supportedSteps: ["chat"],
         inputTypes: ["text"],
         outputTypes: ["text"],
-        streaming: false,
-        batch: false,
-        configurable: false
-      },
-      {
-        provider: "mock-image",
-        supports: ["image_generate", "image_edit", "image_replace"],
-        inputTypes: ["text", "image"],
-        outputTypes: ["image"],
+        attachments: true,
         streaming: false,
         batch: false,
         configurable: false,
-        maxFiles: 16
+        maxImages: undefined
+      },
+      {
+        provider: "mock-image",
+        providerName: "mock-image",
+        model: "mock-image",
+        supports: ["image_generate", "image_edit", "image_replace"],
+        supportedSteps: ["image_generate", "image_edit", "image_replace"],
+        inputTypes: ["text", "image"],
+        outputTypes: ["image"],
+        attachments: true,
+        streaming: false,
+        batch: false,
+        configurable: false,
+        maxFiles: 16,
+        maxImages: 4
       }
     ]);
   });

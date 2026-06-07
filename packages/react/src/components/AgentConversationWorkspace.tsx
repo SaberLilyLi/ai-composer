@@ -38,10 +38,14 @@ export function AgentConversationWorkspace({
     mode,
     modeSwitchConfig,
     resetConversation,
+    retryConversation,
+    retryWorkflow,
+    retryWorkflowStep,
     setMode,
     uploadOptions,
     workflowSteps
   } = useAgentConversationController({ initialMode, config });
+  const failedStep = workflowSteps.find((step) => step.status === "error");
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-composer-bg text-composer-text" data-theme={theme}>
@@ -55,6 +59,33 @@ export function AgentConversationWorkspace({
             <div className="hidden rounded-full border border-composer-chipBorder bg-composer-input px-3 py-1.5 text-xs text-composer-muted sm:block">
               {isBusy ? "Generating..." : "Ready"}
             </div>
+            {!isBusy && mode === "chat" ? (
+              <button
+                type="button"
+                className="rounded-full border border-composer-chipBorder bg-composer-input px-3 py-1.5 text-xs font-medium text-composer-muted transition hover:bg-composer-chip"
+                onClick={() => void retryConversation?.()}
+              >
+                Retry
+              </button>
+            ) : null}
+            {!isBusy && mode === "image" ? (
+              <button
+                type="button"
+                className="rounded-full border border-composer-chipBorder bg-composer-input px-3 py-1.5 text-xs font-medium text-composer-muted transition hover:bg-composer-chip"
+                onClick={() => void retryWorkflow?.()}
+              >
+                Retry Workflow
+              </button>
+            ) : null}
+            {!isBusy && failedStep ? (
+              <button
+                type="button"
+                className="rounded-full border border-composer-chipBorder bg-composer-input px-3 py-1.5 text-xs font-medium text-composer-muted transition hover:bg-composer-chip"
+                onClick={() => void retryWorkflowStep?.(failedStep.id)}
+              >
+                Retry Step
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-full border border-composer-chipBorder bg-composer-input px-3 py-1.5 text-xs font-medium text-composer-muted transition hover:bg-composer-chip"

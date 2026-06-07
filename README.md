@@ -2,6 +2,12 @@
 
 This repository now follows the architecture doc as a workspace SDK instead of a single React-only package.
 
+## Primary entry
+
+For multi-project reuse, treat `AiComposer` as the primary public module.
+
+`AiComposer` is a reusable composer input component, not a full chat workspace. It should own input interaction, uploads, command and mention UX, and action options. Host applications should own conversation history, API calls, runtime orchestration, and page layout.
+
 ## Packages
 
 1. `packages/shared`: shared types, workflow contracts, theme tokens
@@ -35,6 +41,21 @@ pnpm dev
 import { AiComposer } from "@company/ai-composer";
 import "@company/ai-composer/styles.css";
 ```
+
+```tsx
+<AiComposer
+  placeholder="Ask or instruct..."
+  commands={commands}
+  mentions={mentions}
+  actionOptions={actionOptions}
+  uploadOptions={{ accept: ["image/*"], maxFiles: 3 }}
+  onSend={async (value, { attachments }) => {
+    await sendToMyService({ value, attachments });
+  }}
+/>
+```
+
+See [docs/AiComposer Reuse Guide.md](/F:/ai-composer/docs/AiComposer%20Reuse%20Guide.md) for module boundaries and integration rules.
 
 ## Lower-level usage
 

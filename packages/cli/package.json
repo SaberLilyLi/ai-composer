@@ -1,0 +1,18 @@
+{
+  "name": "ai-studio",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ai-studio": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "dependencies": {
+    "@company/ai-composer-core": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts"
+  }
+}

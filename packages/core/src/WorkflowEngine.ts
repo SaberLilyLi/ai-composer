@@ -12,6 +12,11 @@ export interface WorkflowEngineProviders {
 export interface WorkflowEngineContext {
   signal?: AbortSignal;
   attachments?: string[];
+  imageOptions?: {
+    count?: number;
+    resolution?: string;
+    size?: string;
+  };
   onStepStart?: (step: WorkflowStep) => void;
   onStepSuccess?: (step: WorkflowStep) => void;
   onStepError?: (step: WorkflowStep, error: unknown) => void;
@@ -64,27 +69,23 @@ export class WorkflowEngine {
     switch (type) {
       case "image_generate": {
         const provider = requireImageProvider(matchedProvider ?? this.providers.image, type);
-        const output = await provider.generateImage({
+        const output = await runImageGeneration(provider, {
           prompt,
           attachments: context.attachments,
-          signal: context.signal
+          signal: context.signal,
+          imageOptions: context.imageOptions
         });
         return { output, provider: getProviderName(provider, output.model) };
       }
       case "image_edit":
       case "image_replace": {
         const provider = requireImageProvider(matchedProvider ?? this.providers.image, type);
-        const output = provider.editImage
-          ? await provider.editImage({
-            prompt,
-            attachments: context.attachments ?? [],
-            signal: context.signal
-          })
-          : await provider.generateImage({
-            prompt,
-            attachments: context.attachments,
-            signal: context.signal
-          });
+        const output = await runImageEdit(provider, {
+          prompt,
+          attachments: context.attachments ?? [],
+          signal: context.signal,
+          imageOptions: context.imageOptions
+        });
 
         return { output, provider: getProviderName(provider, output.model) };
       }
@@ -146,4 +147,88 @@ function requireImageProvider(provider: unknown, type: WorkflowStepType): ImageP
 
 function getProviderName(provider: { getCapability?: () => { provider: string } }, fallback: string): string {
   return provider.getCapability?.().provider ?? fallback;
+}
+
+async function runImageGeneration(
+  provider: ImageProvider,
+  input: {
+    prompt: string;
+    attachments?: string[];
+    signal?: AbortSignal;
+    imageOptions?: WorkflowEngineContext["imageOptions"];
+  }
+) {
+  const configurableProvider = provider as ImageProvider & {
+    generateWithOptions?: (input: {
+      prompt: string;
+      attachments?: string[];
+      signal?: AbortSignal;
+      count?: number;
+      resolution?: string;
+      size?: string;
+    }) => Promise<{ images: string[]; model: string }>;
+  };
+
+  if (configurableProvider.generateWithOptions) {
+    return configurableProvider.generateWithOptions({
+      prompt: input.prompt,
+      attachments: input.attachments,
+      signal: input.signal,
+      count: input.imageOptions?.count,
+      resolution: input.imageOptions?.resolution,
+      size: input.imageOptions?.size
+    });
+  }
+
+  return provider.generateImage({
+    prompt: input.prompt,
+    attachments: input.attachments,
+    signal: input.signal
+  });
+}
+
+async function runImageEdit(
+  provider: ImageProvider,
+  input: {
+    prompt: string;
+    attachments: string[];
+    signal?: AbortSignal;
+    imageOptions?: WorkflowEngineContext["imageOptions"];
+  }
+) {
+  const configurableProvider = provider as ImageProvider & {
+    generateWithOptions?: (input: {
+      prompt: string;
+      attachments?: string[];
+      signal?: AbortSignal;
+      count?: number;
+      resolution?: string;
+      size?: string;
+    }) => Promise<{ images: string[]; model: string }>;
+  };
+
+  if (provider.editImage) {
+    return provider.editImage({
+      prompt: input.prompt,
+      attachments: input.attachments,
+      signal: input.signal
+    });
+  }
+
+  if (configurableProvider.generateWithOptions) {
+    return configurableProvider.generateWithOptions({
+      prompt: input.prompt,
+      attachments: input.attachments,
+      signal: input.signal,
+      count: input.imageOptions?.count,
+      resolution: input.imageOptions?.resolution,
+      size: input.imageOptions?.size
+    });
+  }
+
+  return provider.generateImage({
+    prompt: input.prompt,
+    attachments: input.attachments,
+    signal: input.signal
+  });
 }

@@ -10,6 +10,7 @@ export interface ConversationRuntimeState {
   status: ConversationRuntimeStatus;
   messages: Message[];
   error?: string;
+  lastInput?: string;
 }
 
 interface ConversationRuntimeEvents {
@@ -57,6 +58,10 @@ export class ConversationRuntime {
     return this.events.on("complete", handler);
   }
 
+  onAbort(handler: () => void) {
+    return this.events.on("abort", handler);
+  }
+
   async send(content: string): Promise<Message> {
     this.controller = new AbortController();
     const userMessage: Message = {
@@ -68,27 +73,28 @@ export class ConversationRuntime {
     };
 
     this.conversation.addMessage(userMessage);
+    const streamingMessage: Message = {
+      id: `assistant-stream-${Date.now()}`,
+      role: "assistant",
+      content: "",
+      createdAt: Date.now(),
+      status: "streaming"
+    };
     this.state = {
       status: "streaming",
-      messages: this.conversation.getMessages()
+      messages: this.conversation.getMessages().concat(streamingMessage),
+      lastInput: content
     };
     this.events.emit("start", { message: userMessage });
     this.events.emit("message", { message: userMessage });
     this.runtimeEvents.emit("conversation:start", { message: userMessage });
     this.runtimeEvents.emit("conversation:message", { message: userMessage });
-    this.events.emit("streaming", {
-      message: {
-        id: `assistant-streaming-${Date.now()}`,
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-        status: "streaming"
-      }
-    });
+    this.events.emit("streaming", { message: streamingMessage });
+    this.runtimeEvents.emit("conversation:message", { message: streamingMessage });
 
     try {
       const result = this.chatProvider.stream
-        ? await this.sendWithStream(this.controller.signal)
+        ? await this.sendWithStream(this.controller.signal, streamingMessage)
         : await this.chatProvider.chat({
           messages: this.conversation.getMessages(),
           signal: this.controller.signal
@@ -104,7 +110,8 @@ export class ConversationRuntime {
       this.conversation.addMessage(assistantMessage);
       this.state = {
         status: "success",
-        messages: this.conversation.getMessages()
+        messages: this.conversation.getMessages(),
+        lastInput: content
       };
       this.events.emit("complete", { message: assistantMessage });
       this.events.emit("message", { message: assistantMessage });
@@ -115,8 +122,13 @@ export class ConversationRuntime {
       const runtimeError = error instanceof Error ? error : new Error("Conversation request failed.");
       this.state = {
         status: this.controller.signal.aborted ? "aborted" : "error",
-        messages: this.conversation.getMessages(),
-        error: runtimeError.message
+        messages: this.controller.signal.aborted ? this.conversation.getMessages() : this.conversation.getMessages().concat({
+          ...streamingMessage,
+          status: "error",
+          content: runtimeError.message
+        }),
+        error: runtimeError.message,
+        lastInput: content
       };
 
       if (this.controller.signal.aborted) {
@@ -140,19 +152,25 @@ export class ConversationRuntime {
     this.events.emit("abort", undefined);
   }
 
-  private async sendWithStream(signal: AbortSignal): Promise<{ text: string; model: string }> {
+  retry(): Promise<Message> {
+    if (!this.state.lastInput) {
+      throw new Error("No conversation input is available to retry.");
+    }
+
+    return this.send(this.state.lastInput);
+  }
+
+  private async sendWithStream(signal: AbortSignal, streamingMessage: Message): Promise<{ text: string; model: string }> {
     let text = "";
-    const streamingMessage: Message = {
-      id: `assistant-stream-${Date.now()}`,
-      role: "assistant",
-      content: "",
-      createdAt: Date.now(),
-      status: "streaming"
-    };
 
     for await (const chunk of this.chatProvider.stream?.({ messages: this.conversation.getMessages(), signal }) ?? []) {
       text += chunk.content;
       streamingMessage.content = text;
+      this.state = {
+        ...this.state,
+        status: "streaming",
+        messages: this.conversation.getMessages().concat({ ...streamingMessage })
+      };
       this.events.emit("streaming", { message: { ...streamingMessage } });
       this.runtimeEvents.emit("conversation:message", { message: { ...streamingMessage } });
 
